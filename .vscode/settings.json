@@ -1,0 +1,21 @@
+{
+    "python.jediEnabled": false,
+    "python.linting.enabled": true,
+    "python.sortImports.path": "isort",
+    "[python]": {
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": true
+        }
+    },
+    "python.linting.flake8Enabled": true,
+    "python.languageServer": "Pylance",
+    "workbench.iconTheme": "vscode-icons",
+    "terminal.integrated.inheritEnv": false,
+    "editor.formatOnSave": true,
+    "window.newWindowDimensions": "default",
+    "terminal.integrated.fontFamily": "Inconsolata-g for Powerline",
+    "python.formatting.provider": "black",
+    "python.analysis.completeFunctionParens": true,
+    "python.analysis.typeCheckingMode": "basic",
+    "python.linting.pylintEnabled": false,
+}
