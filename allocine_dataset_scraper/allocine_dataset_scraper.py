@@ -163,7 +163,7 @@ class AllocineScraper(object):
 
     def _randomize_waiting_time(self) -> int:
         """Private method to get a random waiting time."""
-        return randrange(**self.pause_scraping)
+        return randrange(*self.pause_scraping)
 
     def _parse_page(self, page: requests.models.Response) -> List[str]:
         """Private method to parse a single result page from Allociné.fr.
