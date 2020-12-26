@@ -11,6 +11,7 @@ import datetime
 # import os
 import re
 import time
+import unicodedata
 from random import randrange
 from typing import List, Optional, Union
 
@@ -106,7 +107,7 @@ class AllocineScraper(object):
 
         self.number_of_pages = number_of_pages
 
-        if not isinstance(from_page, int) or from_page >= 0:
+        if not isinstance(from_page, int) or from_page < 1:
             raise Exception("from_page must be an integer superior to 0.")
 
         self.from_page = from_page
@@ -280,7 +281,7 @@ class AllocineScraper(object):
             datetime.datetime: The movie release date.
         """
 
-        movie_date = movie.find("a", {"class": "date"}).text.strip()
+        movie_date = movie.find("span", {"class": "date"}).text.strip()
         movie_date = dateparser.parse(movie_date, date_formats=["%d %B %Y"])
         return movie_date
 
@@ -310,7 +311,7 @@ class AllocineScraper(object):
             genre.text
             for genre in movie.find(
                 "div", {"class": "meta-body-item meta-body-info"}
-            ).find_all("a", href=re.compile(".*genre.*"))
+            ).find_all("span", class_=re.compile(r".*==$"))
         ]
 
         return ", ".join(movie_genres)
@@ -359,7 +360,7 @@ class AllocineScraper(object):
 
         movie_nationality = [
             nationality.text
-            for nationality in movie.find_all("a", class_="nationality")
+            for nationality in movie.find_all("span", class_="nationality")
         ]
 
         return ", ".join(movie_nationality)
@@ -467,8 +468,8 @@ class AllocineScraper(object):
 
         movie_summary = (
             movie.find("section", {"class": "section ovw ovw-synopsis"})
-            .select("div", {"class": "content-txt "})
+            .find("div", {"class": "content-txt"})
             .text.strip()
         )
 
-        return movie_summary
+        return unicodedata.normalize("NFKC", movie_summary)
