@@ -1,7 +1,19 @@
 # AlloCine Dataset Scraper
 
-## Setup
+## Getting Start
+### Use as a Python Library
+
+#### from github
 ```sh
+pip install https://github.com/ibmw/allocine-dataset-scraper.git
+```
+### Use with docker
+...
+### Usage for Developer
+```sh
+# Clone repo 
+git clone https://github.com/ibmw/allocine-dataset-scraper.git
+
 # Install dependencies
 pipenv install --dev
 
@@ -9,6 +21,5 @@ pipenv install --dev
 pipenv run pre-commit install -t pre-commit
 pipenv run pre-commit install -t pre-push
 ```
-
 ## Credits
 This package was created with Cookiecutter and the [sourcery-ai/python-best-practices-cookiecutter](https://github.com/sourcery-ai/python-best-practices-cookiecutter) project template.

@@ -16,8 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends gcc
 # Install python dependencies in /.venv
 COPY Pipfile .
 COPY Pipfile.lock .
-RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy
-
+RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy 
 
 FROM base AS runtime
 
@@ -34,5 +33,5 @@ USER appuser
 COPY . .
 
 # Run the executable
-ENTRYPOINT ["python", "-m", "allocine_dataset_scraper"]
-CMD ["10"]
+ENTRYPOINT ["python", "-m", "allocine_dataset_scraper/run.py"]
+CMD ["--number_of_pages", "10", "--from_page", "1", "--output_csv_name", "allocine_movies.csv", "--pause_scraping", "[2, 10]"]
