@@ -14,7 +14,7 @@ import sys
 import time
 import unicodedata
 from random import randrange
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 import bs4
 import dateparser
@@ -191,12 +191,12 @@ class AllocineScraper(object):
 
         return urls
 
-    def _parse_movie(self, page: requests.models.Response):
+    def _parse_movie(self, page: requests.models.Response) -> None:
         parser = BeautifulSoup(page.content, "html.parser")
         parser_movie = parser.find("main", {"id": "content-layout"})
 
         # store temporarly all the movie datas
-        movie_datas = {}
+        movie_datas: Dict = {}
 
         # get every info we're interested in
         for info in self.movie_infos:
