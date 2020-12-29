@@ -10,6 +10,7 @@ import datetime
 
 # import os
 import re
+import sys
 import time
 import unicodedata
 from random import randrange
@@ -23,6 +24,11 @@ from bs4 import BeautifulSoup
 
 # from dotenv import find_dotenv, load_dotenv
 from loguru import logger
+from tqdm.auto import tqdm
+
+logger.remove()
+logger.add("scraper.log", rotation="100 MB")
+logger.add(sys.stderr, level="CRITICAL")
 
 
 class AllocineScraper(object):
@@ -199,7 +205,7 @@ class AllocineScraper(object):
             try:
                 scraped_info = getattr(self, "_get_movie_" + info)(parser_movie)
             except Exception as ex:
-                logger.error(ex)
+                logger.error(f"<id:{movie_datas['id']}, info:{info}>: {ex}")
                 scraped_info = None
 
             # store the movie attribute
@@ -216,7 +222,9 @@ class AllocineScraper(object):
 
         logger.info("Starting scraping movies from Allocine...")
 
-        for number in range(self.from_page, self.from_page + self.number_of_pages):
+        for number in tqdm(
+            range(self.from_page, self.from_page + self.number_of_pages), desc="Pages"
+        ):
 
             logger.info(
                 f"Fetching Page {number}/{self.from_page + self.number_of_pages}"
@@ -225,7 +233,11 @@ class AllocineScraper(object):
             res_page = self._get_page(number)
             urls_to_parse = self._parse_page(res_page)
 
-            for url in urls_to_parse:
+            for url in tqdm(
+                urls_to_parse,
+                desc="Movies",
+                leave=(number == (self.from_page + self.number_of_pages - 1)),
+            ):
                 logger.info(f"Fetching Movie {url}")
                 res_movie = self._get_movie(url)
                 self._parse_movie(res_movie)
@@ -248,7 +260,7 @@ class AllocineScraper(object):
     def _get_movie_id(self, movie: bs4.element.Tag) -> int:
         """Private method to retrieve the movie ID according to Allociné.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             int: The movie ID according to Allociné.
         """
@@ -262,7 +274,7 @@ class AllocineScraper(object):
     def _get_movie_title(self, movie: bs4.element.Tag) -> str:
         """Private method to retrieve the movie title.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             str: The movie title.
         """
@@ -276,90 +288,102 @@ class AllocineScraper(object):
     ) -> Union[datetime.datetime, None]:
         """Private method to retrieve the movie release date.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             datetime.datetime: The movie release date.
         """
 
-        movie_date = movie.find("span", {"class": "date"}).text.strip()
-        movie_date = dateparser.parse(movie_date, date_formats=["%d %B %Y"])
+        movie_date = movie.find("span", {"class": "date"})
+        if movie_date:
+            movie_date = movie_date.text.strip()
+            movie_date = dateparser.parse(movie_date, date_formats=["%d %B %Y"])
         return movie_date
 
     def _get_movie_duration(self, movie: bs4.element.Tag) -> int:
         """Private method to retrieve the movie duration.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             int: The movie duration in minutes.
         """
 
         movie_duration = movie.find("span", {"class": "spacer"}).next_sibling.strip()
-        duration_timedelta = pd.to_timedelta(movie_duration).components
-        movie_duration = duration_timedelta.hours * 60 + duration_timedelta.minutes
+        if movie_duration != "":
+            duration_timedelta = pd.to_timedelta(movie_duration).components
+            movie_duration = duration_timedelta.hours * 60 + duration_timedelta.minutes
 
         return movie_duration
 
-    def _get_movie_genres(self, movie: bs4.element.Tag) -> str:
+    def _get_movie_genres(self, movie: bs4.element.Tag) -> Union[str, None]:
         """Private method to retrieve the movie genre(s).
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
-            str: The movie genre(s).
+            Union[str, None]: The movie genre(s).
         """
+        div_genres = movie.find("div", {"class": "meta-body-item meta-body-info"})
 
-        movie_genres = [
-            genre.text
-            for genre in movie.find(
-                "div", {"class": "meta-body-item meta-body-info"}
-            ).find_all("span", class_=re.compile(r".*==$"))
-        ]
+        if div_genres:
+            movie_genres = [
+                genre.text
+                for genre in div_genres.find_all("span", class_=re.compile(r".*==$"))
+                if "\n" not in genre.text
+            ]
 
-        return ", ".join(movie_genres)
+            return ", ".join(movie_genres)
 
-    def _get_movie_directors(self, movie: bs4.element.Tag) -> str:
+        return None
+
+    def _get_movie_directors(self, movie: bs4.element.Tag) -> Union[str, None]:
         """Private method to retrieve the movie director(s).
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
-            str: The movie director(s).
+            Union[str, None]: The movie director(s).
         """
+        div_directors = movie.find(
+            "div", {"class": "meta-body-item meta-body-direction"}
+        )
+        if div_directors:
+            movie_directors = [
+                link.text
+                for link in div_directors.find_all(
+                    ["a", "span"], class_=re.compile(r".*blue-link$")
+                )
+            ]
 
-        movie_directors = [
-            link.text
-            for link in movie.find(
-                "div", {"class": "meta-body-item meta-body-direction"}
-            ).find_all(["a", "span"], class_=re.compile(r".*blue-link$"))
-        ]
+            return ", ".join(movie_directors)
 
-        return ", ".join(movie_directors)
+        return None
 
-    def _get_movie_actors(self, movie: bs4.element.Tag) -> str:
+    def _get_movie_actors(self, movie: bs4.element.Tag) -> Union[str, None]:
         """Private method to retrieve the movie actor(s).
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
-            str: The movie actor(s).
+            Union[str, None]: The movie actor(s).
         """
+        div_actors = movie.find("div", {"class": "meta-body-item meta-body-actor"})
 
-        movie_actors = [
-            actor.text
-            for actor in movie.find(
-                "div", {"class": "meta-body-item meta-body-actor"}
-            ).find_all(["a", "span"])
-        ][1:]
+        if div_actors:
+            movie_actors = [actor.text for actor in div_actors.find_all(["a", "span"])][
+                1:
+            ]
 
-        return ", ".join(movie_actors)
+            return ", ".join(movie_actors)
+
+        return None
 
     def _get_movie_nationality(self, movie: bs4.element.Tag) -> str:
         """Private method to retrieve the movie nationality.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             str: The movie nationality.
         """
 
         movie_nationality = [
-            nationality.text
+            nationality.text.strip()
             for nationality in movie.find_all("span", class_="nationality")
         ]
 
@@ -368,7 +392,7 @@ class AllocineScraper(object):
     def _get_movie_press_rating(self, movie: bs4.element.Tag) -> Union[float, None]:
         """Private method to retrieve the movie rating according to the press.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             Union[float, None]: The movie rating according to the press.
         """
@@ -391,7 +415,7 @@ class AllocineScraper(object):
     ) -> Union[float, None]:
         """Private method to retrieve number of ratings from the press.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             Union[float, None]: The movie rating according to the press.
         """
@@ -414,7 +438,7 @@ class AllocineScraper(object):
     def _get_movie_spec_rating(self, movie: bs4.element.Tag) -> Union[float, None]:
         """Private method to retrieve the movie rating according to the spectators.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             Union[float, None]: The number of ratings from to the spectators.
         """
@@ -438,7 +462,7 @@ class AllocineScraper(object):
     ) -> Union[float, None]:
         """Private method to retrieve number of ratings from the spectators.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
             Union[float, None]: The number of ratings from according to the press.
         """
@@ -458,18 +482,19 @@ class AllocineScraper(object):
                 )
         return None
 
-    def _get_movie_summary(self, movie: bs4.element.Tag) -> str:
+    def _get_movie_summary(self, movie: bs4.element.Tag) -> Union[str, None]:
         """Private method to retrieve the movie summary.
         Args:
-            movie (bs4.element.Tag): Parser results with the movie informations.
+            movie (bs4.element.Tag): Parser results with the movie page informations.
         Returns:
-            str: The movie summary.
+            Union[str, None]: The movie summary.
         """
 
-        movie_summary = (
-            movie.find("section", {"class": "section ovw ovw-synopsis"})
-            .find("div", {"class": "content-txt"})
-            .text.strip()
-        )
+        movie_summary = movie.find(
+            "section", {"class": "section ovw ovw-synopsis"}
+        ).find("div", {"class": "content-txt"})
 
-        return unicodedata.normalize("NFKC", movie_summary)
+        if movie_summary:
+            movie_summary = movie_summary.text.strip()
+            return unicodedata.normalize("NFKC", movie_summary)
+        return None
