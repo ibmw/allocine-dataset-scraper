@@ -1,23 +1,24 @@
 # AlloCine Dataset Scraper
 
-A scraper to fetch information about movies from Allociné.fr - a company which provides information on French cinema.
+A scraper to fetch information about movies from Allociné.fr (http://www.allocine.fr/films) - a company which provides information on French cinema.
 
 The script use http://www.allocine.fr/films webpage to retrieve data as a .csv file.
 
 **Data Collected**
-    - `id` : Allocine movies id
-    - `title` : Title of the movie (in french)
-    - `release_date`: Release date
-    - `duration`: Movie length
-    - `genres` : Type of movie (up to three different types)
-    - `directors` : Movie directors
-    - `actors` : Main characters of movie
-    - `nationality`: Nationality of the movie
-    - `press_rating`: Average of press ratings (from 0 to 5 stars)
-    - `number_of_press_rating`: Number of press ratings,
-    - `user_rating`:  AlloCiné users ratings (from 0 to 5 stars)
-    - `number_of_spec_rating`: Number of users ratings
-    - `summary` : Short summary of the movie
+
+- `id` : Allocine movie id
+- `title` : Title of the movie (in french)
+- `release_date`: Release date
+- `duration`: Movie length
+- `genres` : Type of movie (up to three different types)
+- `directors` : Movie directors
+- `actors` : Main characters of movie
+- `nationality`: Nationality of the movie
+- `press_rating`: Average of press ratings (from 0 to 5 stars)
+- `number_of_press_rating`: Number of press ratings,
+- `user_rating`:  AlloCiné users ratings (from 0 to 5 stars)
+- `number_of_spec_rating`: Number of users ratings
+- `summary` : Short summary of the movie
 
 ## Getting Start
 ### Use as a Python Library
@@ -31,7 +32,7 @@ pipenv install https://github.com/ibmw/allocine-dataset-scraper.git
 ```sh
 pip install https://github.com/ibmw/allocine-dataset-scraper.git
 ```
-### Usage for Developer
+### Developer Mode Installation
 
 - with [pipenv](https://pypi.org/project/pipenv/)
 ```sh
