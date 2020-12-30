@@ -12,4 +12,5 @@ setup(
     install_requires=Path("requirements.txt").read_text().splitlines(),  # dependencies
     packages=find_packages(),
     include_package_data=False,
+    extras_require={"dev": Path("requirements-dev.txt").read_text().splitlines()},
 )
