@@ -1,8 +1,8 @@
 # AlloCine Dataset Scraper
 
-A scraper to fetch information about movies from Allociné.fr (http://www.allocine.fr/films) - a company which provides information on French cinema.
+A scraper to fetch information about movies from Allociné.fr - a company which provides information on French cinema.
 
-The script use http://www.allocine.fr/films webpage to retrieve data as a .csv file.
+The script use http://www.allocine.fr/films webpage to retrieve data as a .csv file saved in data directory.
 
 **Data Collected**
 
@@ -21,20 +21,25 @@ The script use http://www.allocine.fr/films webpage to retrieve data as a .csv f
 - `summary` : Short summary of the movie
 
 ## Getting Start
-### Use as a Python Library
+### Installation
+#### Install as a Python Library
 
-#### from github
 - with [pipenv](https://pypi.org/project/pipenv/)
+
 ```sh
 pipenv install https://github.com/ibmw/allocine-dataset-scraper.git
 ```
+
 - with pip
+
 ```sh
 pip install https://github.com/ibmw/allocine-dataset-scraper.git
 ```
-### Developer Mode Installation
+
+#### Install As an SDK (Developer Mode)
 
 - with [pipenv](https://pypi.org/project/pipenv/)
+
 ```sh
 # Clone repo 
 git clone https://github.com/ibmw/allocine-dataset-scraper.git
@@ -48,6 +53,7 @@ pipenv run pre-commit install -t pre-push
 ```
 
 - with pip
+
 ```sh
 # Clone repo 
 git clone https://github.com/ibmw/allocine-dataset-scraper.git
@@ -58,5 +64,49 @@ pip install -e .[dev]
 pre-commit install -t pre-commit
 pre-commit install -t pre-push
 ```
-## Credits
-This package was created with Cookiecutter and the [sourcery-ai/python-best-practices-cookiecutter](https://github.com/sourcery-ai/python-best-practices-cookiecutter) project template.
+
+### Usage
+
+#### CLI 
+
+Run the fetcher with default values : 
+
+- with [pipenv](https://pypi.org/project/pipenv/)
+```sh
+pipenv run fetch-allocine
+```
+
+- with pip
+First, you need to activate your environnement.
+```sh
+fetch-allocine
+```
+
+Check options with --help : 
+
+```sh
+Usage: fetch-allocine [OPTIONS]
+
+  Simple scraper that retrieve information about movie on AlloCine.fr.
+
+Options:
+  --number_of_pages INTEGER    Number of page to scrape.  [default: 10]
+  --from_page INTEGER          First page to scrape.  [default: 1]
+  --output_dir TEXT            Directory name to output csv files.  [default:
+                               data]
+  --output_csv_name TEXT       Output file name (save in a data directory).
+                               [default: allocine_movies.csv]
+  --pause_scraping INTEGER...  Range to randomize pauses.  [default: 2, 10]
+  --help                       Show this message and exit.                      
+```
+
+#### Inside a script / ipynb :
+
+```python
+from allocine_dataset_scraper.scraper import AllocineScraper
+
+scraper = AllocineScraper(number_of_pages=5) 
+scraper.scraping_movies()
+```
+
+NB : Print out help with `help(scraper)`
