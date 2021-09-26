@@ -4,24 +4,29 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 
 [requires]
-python_version = "3.8"
+python_version = "3.9.7"
 
 [packages]
+allocine-dataset-scraper = {editable = true, path = "."}
 requests = "*"
 beautifulsoup4 = "*"
 pandas = "*"
-loguru = "*"
-"elasticsearch[async]" = "*"
+numpy = "*"
 python-dotenv = "*"
+loguru = "*"
 dateparser = "*"
 click = "*"
 tqdm = "*"
 
 [dev-packages]
-black = "==20.8b1"
+black = "==21.5b2"
 flake8 = "*"
+flake8-bugbear = "*"
+flake8-comprehensions = "*"
 isort = "*"
 mypy = "*"
+types-dateparser = "*"
+types-requests = "*"
 pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
