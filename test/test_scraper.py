@@ -1,6 +1,6 @@
 import dateparser
 
-from allocine_dataset_scraper.allocine_dataset_scraper import AllocineScraper
+from allocine_dataset_scraper.scraper import AllocineScraper
 
 
 def test__parse_page(response_page) -> None:

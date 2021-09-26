@@ -7,8 +7,7 @@ scraper (object):
 """
 
 import datetime
-
-# import os
+import os
 import re
 import sys
 import time
@@ -21,8 +20,6 @@ import dateparser
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
-
-# from dotenv import find_dotenv, load_dotenv
 from loguru import logger
 from tqdm.auto import tqdm
 
@@ -41,6 +38,9 @@ class AllocineScraper(object):
 
     df (pd.DataFrame):
         Pandas DataFrame with all the scraped informations.
+
+    output_dir (str):
+        Output directory for the csv file
 
     output_csv_name (str):
         CSV Filename of the Pandas DataFrame that hosts all our movie results.
@@ -82,8 +82,9 @@ class AllocineScraper(object):
         self,
         number_of_pages: Optional[int] = 10,
         from_page: Optional[int] = 1,
+        output_dir: Optional[str] = "data",
         output_csv_name: Optional[str] = "allocine_movies.csv",
-        pause_scraping: Optional[List[int]] = [2, 10],
+        pause_scraping: Optional[List[int]] = None,
     ) -> None:
         """Initializes our Scraper class.
 
@@ -109,22 +110,32 @@ class AllocineScraper(object):
         """
 
         if not isinstance(number_of_pages, int) or number_of_pages < 2:
-            raise Exception("number_of_pages must be an integer superior to 1.")
+            raise Exception(f"<{number_of_pages=}> must be an integer superior to 1.")
 
         self.number_of_pages = number_of_pages
 
         if not isinstance(from_page, int) or from_page < 1:
-            raise Exception("from_page must be an integer superior to 0.")
+            raise Exception(f"<{from_page=}> must be an integer superior to 0.")
 
         self.from_page = from_page
 
+        if not isinstance(output_dir, str):
+            raise Exception(f"<{output_dir=}> must have a valid name.")
+
+        self.output_dir = output_dir
+
         if not isinstance(output_csv_name, str) or output_csv_name[-4:] != ".csv":
-            raise Exception("output file name must have a valid CSV name.")
+            raise Exception(f"<{output_csv_name=}> must have a valid CSV name.")
 
         self.output_csv_name = output_csv_name
 
+        if not pause_scraping:
+            pause_scraping = [2, 10]
+
         if not isinstance(pause_scraping, list):
-            raise Exception("pause_scraping must be an integer or a list of integer")
+            raise Exception(
+                f"<{pause_scraping=}> must be an integer or a list of integer"
+            )
 
         self.pause_scraping = pause_scraping
 
@@ -133,7 +144,9 @@ class AllocineScraper(object):
         logger.info(
             f"- Time to wait between pages between : {self.pause_scraping[0]} sec and {self.pause_scraping[1]} sec"
         )
-        logger.info(f"- Results will be stored in: {self.output_csv_name}")
+        logger.info(
+            f"- Results will be stored in: <{self.output_dir}/{self.output_csv_name}>"
+        )
 
     def _get_page(self, page_number: int) -> requests.models.Response:
         """Private method to get the full content of a webpage.
@@ -172,6 +185,15 @@ class AllocineScraper(object):
         """Private method to get a random waiting time."""
         return randrange(*self.pause_scraping)
 
+    def _create_directory_if_not_exist(self, path_dir: str) -> None:
+        if not os.path.exists(path_dir):
+            logger.info(f"{path_dir} doesn't exist. We try to create it...")
+            try:
+                os.makedirs(path_dir)
+            except Exception as ex:
+                logger.error(f"Failed to create {path_dir}: {ex}")
+                raise OSError(f"Failed to create {path_dir}: {ex}")
+
     def _parse_page(self, page: requests.models.Response) -> List[str]:
         """Private method to parse a single result page from Allociné.fr.
 
@@ -195,27 +217,22 @@ class AllocineScraper(object):
         parser = BeautifulSoup(page.content, "html.parser")
         parser_movie = parser.find("main", {"id": "content-layout"})
 
-        # store temporarly all the movie datas
+        self._create_directory_if_not_exist(self.output_dir)
+
         movie_datas: Dict = {}
 
-        # get every info we're interested in
         for info in self.movie_infos:
-
-            # take care of unavailable infos for some movies
             try:
                 scraped_info = getattr(self, "_get_movie_" + info)(parser_movie)
             except Exception as ex:
-                logger.error(f"<id:{movie_datas['id']}, info:{info}>: {ex}")
+                logger.error(f"<id:{movie_datas.get('id')}, info:{info}>: {ex}")
                 scraped_info = None
 
-            # store the movie attribute
             movie_datas[info] = [scraped_info]
 
-        # add movie infos to the dataframe
         self.df = pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
 
-        # just to be safe, save after every page
-        self.df.to_csv("data/" + self.output_csv_name, index=False)
+        self.df.to_csv(f"{self.output_dir}/{self.output_csv_name}", index=False)
 
     def scraping_movies(self) -> None:
         """Starts the scraping process."""
