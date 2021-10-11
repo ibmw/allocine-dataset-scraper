@@ -85,6 +85,7 @@ class AllocineScraper(object):
         output_dir: Optional[str] = "data",
         output_csv_name: Optional[str] = "allocine_movies.csv",
         pause_scraping: Optional[List[int]] = None,
+        append_result=False,
     ) -> None:
         """Initializes our Scraper class.
 
@@ -138,15 +139,26 @@ class AllocineScraper(object):
             )
 
         self.pause_scraping = pause_scraping
+        self.append_result = append_result
+        self.full_path_csv = f"{self.output_dir}/{self.output_csv_name}"
 
         logger.info("Initializing Allocine Scraper...")
         logger.info(f"- Number of pages to scrap: {self.number_of_pages}")
         logger.info(
             f"- Time to wait between pages between : {self.pause_scraping[0]} sec and {self.pause_scraping[1]} sec"
         )
-        logger.info(
-            f"- Results will be stored in: <{self.output_dir}/{self.output_csv_name}>"
-        )
+        logger.info(f"- Results will be stored in: <{self.full_path_csv}>")
+
+        if self.append_result:
+            try:
+                self.df = pd.read_csv(self.full_path_csv)
+                self.exclude_ids = self.df["id"].dropna().astype(int).tolist()
+                logger.info(
+                    f"- The list to exclude movies already fetch has been initialize -- Total movie listed: {len(self.exclude_ids)}"
+                )
+            except Exception as ex:
+                logger.error(f"Failed to load the csv {self.full_path_csv} -- {ex}")
+                raise Exception(f"Failed to load the csv {self.full_path_csv} -- {ex}")
 
     def _get_page(self, page_number: int) -> requests.models.Response:
         """Private method to get the full content of a webpage.
@@ -211,6 +223,18 @@ class AllocineScraper(object):
         parser = BeautifulSoup(page.content, "html.parser")
         urls = [url.a["href"] for url in parser.find_all("h2", class_="meta-title")]
 
+        if self.append_result and self.exclude_ids:
+            ori_urls_len = len(urls)
+            urls = [
+                url
+                for url in urls
+                if int(url.split("=")[-1].split(".")[0]) not in self.exclude_ids
+            ]
+            urls_len = len(urls)
+            logger.info(
+                f"{ori_urls_len - urls_len} / {ori_urls_len} movies has already been scraped"
+            )
+
         return urls
 
     def _parse_movie(self, page: requests.models.Response) -> None:
@@ -232,7 +256,7 @@ class AllocineScraper(object):
 
         self.df = pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
 
-        self.df.to_csv(f"{self.output_dir}/{self.output_csv_name}", index=False)
+        self.df.to_csv(f"{self.full_path_csv}", index=False)
 
     def scraping_movies(self) -> None:
         """Starts the scraping process."""
@@ -259,6 +283,7 @@ class AllocineScraper(object):
                 res_movie = self._get_movie(url)
                 self._parse_movie(res_movie)
 
+                self.exclude_ids.append(int(url.split("=")[-1].split(".")[0]))
                 sleep_timer = self._randomize_waiting_time()
                 logger.info(
                     f"Done Fetching {url}. Waiting {sleep_timer} sec before the next one..."

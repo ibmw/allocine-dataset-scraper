@@ -38,12 +38,20 @@ from allocine_dataset_scraper.scraper import AllocineScraper
     help="Range to randomize pauses.",
     show_default=True,
 )
+@click.option(
+    "--append_result",
+    is_flag=True,
+    default=False,
+    help="Append result to the output csv file",
+    show_default=True,
+)
 def main(
     number_of_pages: Optional[int] = 10,
     from_page: Optional[int] = 1,
     output_dir: Optional[str] = "data",
     output_csv_name: Optional[str] = "allocine_movies.csv",
     pause_scraping: tuple = (2, 10),
+    append_result: Optional[bool] = False,
 ) -> None:
     """Simple scraper that retrieve information about movie on AlloCine.fr."""
     scraper = AllocineScraper(
@@ -52,6 +60,7 @@ def main(
         output_dir,
         output_csv_name,
         list(pause_scraping),
+        append_result,
     )
 
     scraper.scraping_movies()

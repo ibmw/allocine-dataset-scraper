@@ -1,10 +1,11 @@
+[![Test](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml)
 # AlloCine Dataset Scraper
 
 A scraper to fetch information about movies from Allociné.fr - a company which provides information on French cinema.
 
 The script use http://www.allocine.fr/films webpage to retrieve data as a .csv file saved in data directory.
 
-**Data Collected**
+**Collected Data**
 
 - `id` : Allocine movie id
 - `title` : Title of the movie (in french)
@@ -18,7 +19,7 @@ The script use http://www.allocine.fr/films webpage to retrieve data as a .csv f
 - `number_of_press_rating`: Number of press ratings,
 - `user_rating`:  AlloCiné users ratings (from 0 to 5 stars)
 - `number_of_spec_rating`: Number of users ratings
-- `summary` : Short summary of the movie
+- `summary` : Short summary of the movie in french
 
 ## Getting Start
 ### Installation
@@ -97,7 +98,9 @@ Options:
   --output_csv_name TEXT       Output file name (save in a data directory).
                                [default: allocine_movies.csv]
   --pause_scraping INTEGER...  Range to randomize pauses.  [default: 2, 10]
-  --help                       Show this message and exit.                      
+  --append_result              Append result to the output csv file  [default:
+                               False]
+  --help                       Show this message and exit.
 ```
 
 #### Inside a script / ipynb :
