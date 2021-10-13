@@ -21,6 +21,8 @@ The script use http://www.allocine.fr/films webpage to retrieve data as a .csv f
 - `number_of_spec_rating`: Number of users ratings
 - `summary` : Short summary of the movie in french
 
+> **Note** : You could [download](https://www.olivier-maillot.fr/wp-content/uploads/2021/10/allocine_movies.csv) data scraped in October 2021 to avoid re-scrape all the data.
+
 ## Getting Start
 ### Installation
 #### Install as a Python Library
