@@ -130,6 +130,9 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
+# data
+data/*
+
 # special ignore case
 __*
 # End of https://www.gitignore.io/api/python
