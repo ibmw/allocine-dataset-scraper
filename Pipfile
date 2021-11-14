@@ -4,7 +4,7 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 
 [requires]
-python_version = "3.9.7"
+python_version = "3.9"
 
 [packages]
 allocine-dataset-scraper = {editable = true, path = "."}
