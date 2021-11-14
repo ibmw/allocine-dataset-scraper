@@ -28,7 +28,7 @@ logger.add("scraper.log", rotation="100 MB")
 logger.add(sys.stderr, level="CRITICAL")
 
 
-class AllocineScraper(object):
+class AllocineScraper:
     """Main class for scraping Allociné.fr
 
     Attributes
