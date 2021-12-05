@@ -13,25 +13,17 @@ FROM base AS python-deps
 RUN pip install pipenv
 RUN apt-get update && apt-get install -y --no-install-recommends gcc
 
-# Install python dependencies in /.venv
-COPY Pipfile .
-COPY Pipfile.lock .
-RUN PIPENV_VENV_IN_PROJECT=1 pipenv install --deploy 
-
-FROM base AS runtime
-
-# Copy virtual env from python-deps stage
-COPY --from=python-deps /.venv /.venv
-ENV PATH="/.venv/bin:$PATH"
-
 # Create and switch to a new user
 RUN useradd --create-home appuser
 WORKDIR /home/appuser
+
+# Install python dependencies in /.venv
+COPY --chmod=777 . .
+RUN pipenv install --deploy --system
+RUN mkdir -p /home/appuser/data
+VOLUME ["/home/appuser/data"]
 USER appuser
 
-# Install application into container
-COPY . .
-
 # Run the executable
-ENTRYPOINT ["python", "-m", "allocine_dataset_scraper/run.py"]
-CMD ["--number_of_pages", "10", "--from_page", "1", "--output_csv_name", "allocine_movies.csv", "--pause_scraping", "[2, 10]"]
+ENTRYPOINT ["fetch-allocine"]
+CMD ["--number_of_pages", "10", "--from_page", "1", "--output_csv_name", "allocine_movies.csv", "--pause_scraping", "2", "10"]

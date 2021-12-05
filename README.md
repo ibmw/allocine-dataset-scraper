@@ -110,8 +110,43 @@ Options:
 ```python
 from allocine_dataset_scraper.scraper import AllocineScraper
 
-scraper = AllocineScraper(number_of_pages=5) 
+scraper = AllocineScraper(
+  number_of_pages = 5,
+  from_page = 1,
+  output_dir = "data",
+  output_csv_name = "allocine_movies.csv",
+  pause_scraping = [0, 10],
+  append_result=False
+  )
+  
 scraper.scraping_movies()
 ```
 
 NB : Print out help with `help(scraper)`
+
+
+#### With Docker
+
+- **Step 1: Build the image** 
+
+```sh
+docker build -t allocine_dataset_scraper .
+```
+
+- **Step 1bis : create a data directory to stock the csv file**
+
+```sh
+mkdir data
+```
+
+- **Step 2 Run the image with arguments**
+
+```sh
+docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 
+```
+
+*with append_result*
+
+```sh
+docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 --append_result
+```

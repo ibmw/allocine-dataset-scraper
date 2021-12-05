@@ -4,4 +4,8 @@
 # ... except for dependencies and source
 !Pipfile
 !Pipfile.lock
-!allocine_dataset_scraper
+!src
+!VERSION
+!pyproject.toml
+!setup.cfg
+!data

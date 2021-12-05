@@ -30,3 +30,6 @@ types-requests = "*"
 pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
+
+[pipenv]
+allow_prereleases = true
