@@ -45,7 +45,7 @@ from allocine_dataset_scraper.scraper import AllocineScraper
     help="Append result to the output csv file",
     show_default=True,
 )
-def main(
+def cli(
     number_of_pages: Optional[int] = 10,
     from_page: Optional[int] = 1,
     output_dir: Optional[str] = "data",
@@ -54,6 +54,12 @@ def main(
     append_result: Optional[bool] = False,
 ) -> None:
     """Simple scraper that retrieve information about movie on AlloCine.fr."""
+    click.echo(f"{number_of_pages=}")
+    click.echo(f"{from_page=}")
+    click.echo(f"{output_dir=}")
+    click.echo(f"{output_csv_name=}")
+    click.echo(f"{pause_scraping=}")
+    click.echo(f"{append_result=}")
     scraper = AllocineScraper(
         number_of_pages,
         from_page,
@@ -67,4 +73,4 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    cli()

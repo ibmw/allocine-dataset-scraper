@@ -1,10 +1,4 @@
-"""Scraping movies informations available on Allocine.fr
-
-Attributes
-----------
-scraper (object):
-    Instance of the main class.
-"""
+"""Scraping movies informations available on Allocine.fr"""
 
 import datetime
 import os
@@ -110,7 +104,7 @@ class AllocineScraper:
             Exits the scraper if the arguments are not appropriate.
         """
 
-        if not isinstance(number_of_pages, int) or number_of_pages < 2:
+        if not isinstance(number_of_pages, int) or number_of_pages < 1:
             raise Exception(f"<{number_of_pages=}> must be an integer superior to 1.")
 
         self.number_of_pages = number_of_pages
@@ -159,6 +153,8 @@ class AllocineScraper:
             except Exception as ex:
                 logger.error(f"Failed to load the csv {self.full_path_csv} -- {ex}")
                 raise Exception(f"Failed to load the csv {self.full_path_csv} -- {ex}")
+        else:
+            self.exclude_ids = []
 
     def _get_page(self, page_number: int) -> requests.models.Response:
         """Private method to get the full content of a webpage.
@@ -256,7 +252,9 @@ class AllocineScraper:
 
         self.df = pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
 
-        self.df.to_csv(f"{self.full_path_csv}", index=False)
+        self.df.drop_duplicates(subset=["id"]).to_csv(
+            f"{self.full_path_csv}", index=False
+        )
 
     def scraping_movies(self) -> None:
         """Starts the scraping process."""
