@@ -105,22 +105,22 @@ class AllocineScraper:
         """
 
         if not isinstance(number_of_pages, int) or number_of_pages < 1:
-            raise Exception(f"<{number_of_pages=}> must be an integer superior to 1.")
+            raise ValueError(f"<{number_of_pages=}> must be an integer superior to 1.")
 
         self.number_of_pages = number_of_pages
 
         if not isinstance(from_page, int) or from_page < 1:
-            raise Exception(f"<{from_page=}> must be an integer superior to 0.")
+            raise ValueError(f"<{from_page=}> must be an integer superior to 0.")
 
         self.from_page = from_page
 
         if not isinstance(output_dir, str):
-            raise Exception(f"<{output_dir=}> must have a valid name.")
+            raise ValueError(f"<{output_dir=}> must have a valid name.")
 
         self.output_dir = output_dir
 
         if not isinstance(output_csv_name, str) or output_csv_name[-4:] != ".csv":
-            raise Exception(f"<{output_csv_name=}> must have a valid CSV name.")
+            raise ValueError(f"<{output_csv_name=}> must have a valid CSV name.")
 
         self.output_csv_name = output_csv_name
 
@@ -128,7 +128,7 @@ class AllocineScraper:
             pause_scraping = [2, 10]
 
         if not isinstance(pause_scraping, list):
-            raise Exception(
+            raise ValueError(
                 f"<{pause_scraping=}> must be an integer or a list of integer"
             )
 
@@ -152,7 +152,9 @@ class AllocineScraper:
                 )
             except Exception as ex:
                 logger.error(f"Failed to load the csv {self.full_path_csv} -- {ex}")
-                raise Exception(f"Failed to load the csv {self.full_path_csv} -- {ex}")
+                raise FileNotFoundError(
+                    f"Failed to load the csv {self.full_path_csv} -- {ex}"
+                )
         else:
             self.exclude_ids = []
 
@@ -170,7 +172,9 @@ class AllocineScraper:
             Full source code of the asked webpage.
         """
 
-        response = requests.get(self.ALLOCINE_URL + str(page_number))
+        response = requests.get(
+            self.ALLOCINE_URL + str(page_number)
+        )  # pragma: no cover
         return response
 
     def _get_movie(self, url: str) -> requests.models.Response:
@@ -186,7 +190,7 @@ class AllocineScraper:
         requests.models.Response:
             Full source code of the asked webpage.
         """
-        response = requests.get(f"http://www.allocine.fr{url}")
+        response = requests.get(f"http://www.allocine.fr{url}")  # pragma: no cover
         return response
 
     def _randomize_waiting_time(self) -> int:
@@ -198,7 +202,7 @@ class AllocineScraper:
             logger.info(f"{path_dir} doesn't exist. We try to create it...")
             try:
                 os.makedirs(path_dir)
-            except Exception as ex:
+            except Exception as ex:  # pragma: no cover
                 logger.error(f"Failed to create {path_dir}: {ex}")
                 raise OSError(f"Failed to create {path_dir}: {ex}")
 
@@ -244,7 +248,7 @@ class AllocineScraper:
         for info in self.movie_infos:
             try:
                 scraped_info = getattr(self, "_get_movie_" + info)(parser_movie)
-            except Exception as ex:
+            except Exception as ex:  # pragma: no cover
                 logger.error(f"<id:{movie_datas.get('id')}, info:{info}>: {ex}")
                 scraped_info = None
 

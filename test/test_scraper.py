@@ -1,5 +1,6 @@
 import dateparser
 import pandas as pd
+import pytest
 
 from allocine_dataset_scraper.scraper import AllocineScraper
 
@@ -86,34 +87,43 @@ def test__get_movie_release_date(bs4_movie_page):
 
 
 def test__get_movie_duration(bs4_movie_page):
-    """Test the page parser to retrieve movie duration"""
+    """Test the page parser to retrieve movie duration."""
     scraper = AllocineScraper()
     val = scraper._get_movie_duration(bs4_movie_page)
     val_expected = 122
     assert val == val_expected
 
 
-def test__get_movie_genres(bs4_movie_page):
+def test__get_movie_genres(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie genres"""
     scraper = AllocineScraper()
     val = scraper._get_movie_genres(bs4_movie_page)
     val_expected = "Drame, Science fiction"
     assert val == val_expected
+    val = scraper._get_movie_genres(bs4_movie_page_exception)
+    val_expected = None
+    assert val == val_expected
 
 
-def test__get_movie_directors(bs4_movie_page):
+def test__get_movie_directors(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie directors"""
     scraper = AllocineScraper()
     val = scraper._get_movie_directors(bs4_movie_page)
     val_expected = "George Clooney"
     assert val == val_expected
+    val = scraper._get_movie_directors(bs4_movie_page_exception)
+    val_expected = None
+    assert val == val_expected
 
 
-def test__get_movie_actors(bs4_movie_page):
+def test__get_movie_actors(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie actors"""
     scraper = AllocineScraper()
     val = scraper._get_movie_actors(bs4_movie_page)
     val_expected = "George Clooney, Felicity Jones, David Oyelowo"
+    assert val == val_expected
+    val = scraper._get_movie_actors(bs4_movie_page_exception)
+    val_expected = None
     assert val == val_expected
 
 
@@ -125,45 +135,60 @@ def test__get_movie_nationality(bs4_movie_page):
     assert val == val_expected
 
 
-def test__get_movie_press_rating(bs4_movie_page):
+def test__get_movie_press_rating(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie press rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_press_rating(bs4_movie_page)
     val_expected = 2.4
     assert val == val_expected
+    val = scraper._get_movie_press_rating(bs4_movie_page_exception)
+    val_expected = None
+    assert val == val_expected
 
 
-def test__get_movie_number_of_press_rating(bs4_movie_page):
+def test__get_movie_number_of_press_rating(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie
     number of press rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_number_of_press_rating(bs4_movie_page)
     val_expected = 18.0
     assert val == val_expected
+    val = scraper._get_movie_number_of_press_rating(bs4_movie_page_exception)
+    val_expected = None
+    assert val == val_expected
 
 
-def test__get_movie_spec_rating(bs4_movie_page):
+def test__get_movie_spec_rating(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie spectator rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_spec_rating(bs4_movie_page)
     val_expected = 2.2
     assert val == val_expected
+    val = scraper._get_movie_spec_rating(bs4_movie_page_exception)
+    val_expected = None
+    assert val == val_expected
 
 
-def test__get_movie_number_of_spec_rating(bs4_movie_page):
+def test__get_movie_number_of_spec_rating(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie
     number of spec rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_number_of_spec_rating(bs4_movie_page)
     val_expected = 488101.0
     assert val == val_expected
+    val = scraper._get_movie_number_of_spec_rating(bs4_movie_page_exception)
+    val_expected = None
+    assert val == val_expected
 
 
-def test__get_movie_summary(bs4_movie_page):
+def test__get_movie_summary(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie summary"""
     scraper = AllocineScraper()
     val = scraper._get_movie_summary(bs4_movie_page)
     val_expected = "Dans ce film post-apocalyptique, Augustine, scientifique solitaire basé en Arctique, tente l’impossible pour empêcher l'astronaute Sully et son équipage de rentrer sur Terre. Car il sait qu’une mystérieuse catastrophe planétaire est imminente...Inspiré du roman éponyme de Lily Brooks-Dalton, plébiscité par la critique."
+    assert val == val_expected
+    val = scraper._get_movie_summary(bs4_movie_page_exception)
+    val_expected = None
     assert val == val_expected
 
 
@@ -213,3 +238,45 @@ def test_scraping_movies(tmp_path):
     df_scraper = pd.read_csv(full_dir)
     end_shape = df_scraper.shape
     assert end_shape[0] == 1
+
+
+def test_number_of_page_exception():
+    with pytest.raises(ValueError):
+        AllocineScraper(number_of_pages="5")
+
+
+def test_from_page_exception():
+    with pytest.raises(ValueError):
+        AllocineScraper(from_page="1")
+
+
+def test_output_dir_exception():
+    with pytest.raises(ValueError):
+        AllocineScraper(output_dir=1)
+
+
+def test_output_csv_name_exception():
+    with pytest.raises(ValueError):
+        AllocineScraper(output_csv_name=1)
+
+
+def test_pause_scraping_exception():
+    with pytest.raises(ValueError):
+        AllocineScraper(pause_scraping="pause")
+
+
+def test_append_result_exception(tmp_path):
+    with pytest.raises(FileNotFoundError):
+        path_dir = tmp_path / "data"
+        output_csv_name = "allocine_movies.csv"
+
+        scraper = AllocineScraper(
+            number_of_pages=1,
+            from_page=1,
+            output_dir=f"{path_dir}",
+            output_csv_name=output_csv_name,
+            pause_scraping=[0, 1],
+            append_result=True,
+        )
+
+        scraper.scraping_movies()

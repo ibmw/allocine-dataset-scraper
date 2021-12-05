@@ -69,6 +69,19 @@ def bs4_movie_page():
 
 
 @pytest.fixture
+def bs4_movie_page_exception():
+    txt = read_file(str(Path(__file__).parent / "data/movie_exception.txt"))
+    resp = Response()
+    resp.status_code = 200
+    resp._content = str.encode(txt)
+
+    parser = BeautifulSoup(resp.content, "html.parser")
+    parser_movie = parser.find("main", {"id": "content-layout"})
+
+    return parser_movie
+
+
+@pytest.fixture
 def get_dataframe():
     csv_path = str(Path(__file__).parent / "data/test_dataframe.csv")
     return pd.read_csv(csv_path)
