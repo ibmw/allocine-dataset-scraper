@@ -96,7 +96,8 @@ class AllocineScraper:
 
         pause_scraping : Optional[List[int]], default = [2, 10]
             Number of secondes to wait before scraping the next page.
-            Use a fixe number of second or a list of two integer to get a random number of seconds.
+            Use a fixe number of second or a list of two integer
+            to get a random number of seconds.
 
         Raises
         ------
@@ -139,7 +140,8 @@ class AllocineScraper:
         logger.info("Initializing Allocine Scraper...")
         logger.info(f"- Number of pages to scrap: {self.number_of_pages}")
         logger.info(
-            f"- Time to wait between pages between : {self.pause_scraping[0]} sec and {self.pause_scraping[1]} sec"
+            f"""- Time to wait between pages between :
+            {self.pause_scraping[0]} sec and {self.pause_scraping[1]} sec"""
         )
         logger.info(f"- Results will be stored in: <{self.full_path_csv}>")
 
@@ -148,7 +150,8 @@ class AllocineScraper:
                 self.df = pd.read_csv(self.full_path_csv)
                 self.exclude_ids = self.df["id"].dropna().astype(int).tolist()
                 logger.info(
-                    f"- The list to exclude movies already fetch has been initialize -- Total movie listed: {len(self.exclude_ids)}"
+                    f"""- The list to exclude movies already fetch has been initialize
+                    -- Total movie listed: {len(self.exclude_ids)}"""
                 )
             except Exception as ex:
                 logger.error(f"Failed to load the csv {self.full_path_csv} -- {ex}")
@@ -234,7 +237,8 @@ class AllocineScraper:
             ]
             urls_len = len(urls)
             logger.info(
-                f"{ori_urls_len - urls_len} / {ori_urls_len} movies has already been scraped"
+                f"""{ori_urls_len - urls_len} / {ori_urls_len}
+                movies has already been scraped"""
             )
 
         return urls
@@ -290,13 +294,15 @@ class AllocineScraper:
                 self.exclude_ids.append(int(url.split("=")[-1].split(".")[0]))
                 sleep_timer = self._randomize_waiting_time()
                 logger.info(
-                    f"Done Fetching {url}. Waiting {sleep_timer} sec before the next one..."
+                    f"""Done Fetching {url}.
+                    Waiting {sleep_timer} sec before the next one..."""
                 )
                 time.sleep(sleep_timer)
 
             sleep_timer = self._randomize_waiting_time()
             logger.info(
-                f"Done scraping page #{number}. Waiting {sleep_timer} sec before the next one..."
+                f"""Done scraping page #{number}.
+                Waiting {sleep_timer} sec before the next one..."""
             )
             time.sleep(sleep_timer)
 
@@ -427,7 +433,8 @@ class AllocineScraper:
 
         return None
 
-    def _get_movie_nationality(self, movie: bs4.element.Tag) -> str:
+    @staticmethod
+    def _get_movie_nationality(movie: bs4.element.Tag) -> str:
         """Private method to retrieve the movie nationality.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
