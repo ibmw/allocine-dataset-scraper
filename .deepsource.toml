@@ -1,0 +1,32 @@
+version = 1
+
+test_patterns = [
+  "tests/**",
+  "test_*.py"
+]
+
+[[analyzers]]
+name = "python"
+enabled = true
+dependency_file_paths = [
+  "requirements.txt",
+  "requirements-dev.txt",
+  "Pipfile",
+  "Pipfile.lock"
+]
+
+  [analyzers.meta]
+  runtime_version = "3.9.9"
+  type_checker = "mypy"
+
+[[analyzers]]
+name = "test-coverage"
+enabled = true
+
+[[analyzers]]
+name = "docker"
+enabled = true
+
+[[analyzers]]
+name = "secrets"
+enabled = true
