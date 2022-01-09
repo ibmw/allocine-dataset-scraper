@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Setup Python
         uses: actions/setup-python@v1
@@ -24,8 +26,24 @@ jobs:
           pip install pipenv
           pipenv install --deploy --dev
 
-      - run: pipenv run isort --recursive --diff .
-      - run: pipenv run black --check .
-      - run: pipenv run flake8
-      - run: pipenv run mypy
-      - run: pipenv run pytest --cov --cov-fail-under=0
+      - name: Check isort
+        run: pipenv run isort --recursive --diff .
+
+      - name: Check isort
+        run: pipenv run black --check .
+
+      - name: Check flake8
+        run: pipenv run flake8
+
+      - name: Check mypy
+        run: pipenv run mypy
+
+      - name: Check pytest
+        run: pipenv run pytest --cov --cov-fail-under=90 --cov-report xml
+
+      - name: Report results to DeepSource
+        run: |
+          curl https://deepsource.io/cli | sh
+          ./bin/deepsource report --analyzer test-coverage --key python --value-file ./coverage.xml
+        env:
+          DEEPSOURCE_DSN: ${{ secrets.DEEPSOURCE_DSN }}
