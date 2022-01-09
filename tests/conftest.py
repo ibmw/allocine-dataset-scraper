@@ -39,6 +39,7 @@ def patch_tests(monkeypatch):
 
 @pytest.fixture
 def response_page():
+    """Fixture to response page."""
     txt = read_file(str(Path(__file__).parent / "data/page.txt"))
     resp = Response()
     resp.status_code = 200
@@ -48,6 +49,7 @@ def response_page():
 
 @pytest.fixture
 def response_movie():
+    """Fixture to response movie."""
     txt = read_file(str(Path(__file__).parent / "data/movie.txt"))
     resp = Response()
     resp.status_code = 200
@@ -57,6 +59,7 @@ def response_movie():
 
 @pytest.fixture
 def bs4_movie_page():
+    """Fixture to movie page."""
     txt = read_file(str(Path(__file__).parent / "data/movie.txt"))
     resp = Response()
     resp.status_code = 200
@@ -70,6 +73,7 @@ def bs4_movie_page():
 
 @pytest.fixture
 def bs4_movie_page_exception():
+    """Fixture to movie page exception."""
     txt = read_file(str(Path(__file__).parent / "data/movie_exception.txt"))
     resp = Response()
     resp.status_code = 200
@@ -83,5 +87,6 @@ def bs4_movie_page_exception():
 
 @pytest.fixture
 def get_dataframe():
+    """Fixture to get DataFrame."""
     csv_path = str(Path(__file__).parent / "data/test_dataframe.csv")
     return pd.read_csv(csv_path)
