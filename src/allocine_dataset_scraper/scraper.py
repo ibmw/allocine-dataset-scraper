@@ -274,7 +274,6 @@ class AllocineScraper:
         for number in tqdm(
             range(self.from_page, self.from_page + self.number_of_pages), desc="Pages"
         ):
-
             logger.info(
                 f"Fetching Page {number}/{self.from_page + self.number_of_pages}"
             )
@@ -462,7 +461,6 @@ class AllocineScraper:
         movie_ratings = movie.find_all("div", class_="rating-item")
 
         for ratings in movie_ratings:
-
             if "Presse" in ratings.text:
                 return float(
                     re.sub(
@@ -484,7 +482,6 @@ class AllocineScraper:
         movie_ratings = movie.find_all("div", class_="rating-item")
 
         for ratings in movie_ratings:
-
             if "Presse" in ratings.text:
                 return float(
                     re.sub(
@@ -508,7 +505,6 @@ class AllocineScraper:
         movie_ratings = movie.find_all("div", class_="rating-item")
 
         for ratings in movie_ratings:
-
             if "Spectateurs" in ratings.text:
                 return float(
                     re.sub(
@@ -531,7 +527,6 @@ class AllocineScraper:
         movie_ratings = movie.find_all("div", class_="rating-item")
 
         for ratings in movie_ratings:
-
             if "Spectateurs" in ratings.text:
                 return float(
                     re.sub(
