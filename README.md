@@ -145,7 +145,7 @@ mkdir data
 docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 
 ```
 
-*with append_resul option*
+*with append_result option*
 
 ```sh
 docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 --append_result
@@ -177,7 +177,7 @@ mkdir data
 docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 
 ```
 
-*with append_resul option*
+*with append_result option*
 
 ```sh
 docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 --append_result
