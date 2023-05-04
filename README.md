@@ -1,4 +1,4 @@
-[![Test](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml)
+[![Test](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml) [![Weekly Test](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/auto-test.yml/badge.svg)](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/auto-test.yml)
 # AlloCine Dataset Scraper
 
 A scraper to fetch information about movies from Allociné.fr - a company which provides information on French cinema.
@@ -126,26 +126,58 @@ NB : Print out help with `help(scraper)`
 
 
 #### With Docker
+##### Pull mode 
 
-- **Step 1: Build the image** 
-
+- **Step 1 : Pull the image from [github package](https://github.com/ibmw/allocine-dataset-scraper/pkgs/container/allocine-dataset-scraper)**
 ```sh
-docker build -t allocine_dataset_scraper .
+docker pull ghcr.io/ibmw/allocine-dataset-scraper:release
 ```
 
-- **Step 1bis : create a data directory to stock the csv file**
+- **Step 1bis : create a data directory to store the csv file**
 
 ```sh
 mkdir data
 ```
 
-- **Step 2 Run the image with arguments**
+- **Step 2: Run the image with arguments**
 
 ```sh
 docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 
 ```
 
-*with append_result*
+*with append_resul option*
+
+```sh
+docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 --append_result
+```
+
+##### Build mode 
+
+- **Step 1: Clone the github repository** 
+
+```sh
+git clone https://github.com/ibmw/allocine-dataset-scraper.git
+```
+
+- **Step 2: Build the image** 
+
+```sh
+docker build -t allocine_dataset_scraper .
+```
+
+- **Step 2bis : create a data directory to stock the csv file**
+
+```sh
+mkdir data
+```
+
+- **Step 3: Run the image with arguments**
+
+```sh
+docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 
+```
+
+*with append_resul option*
 
 ```sh
 docker run -v $PWD/data:/home/appuser/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 --append_result
