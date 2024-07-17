@@ -317,9 +317,7 @@ class AllocineScraper:
             int: The movie ID according to Allociné.
         """
 
-        movie_id = re.sub(
-            r"\D", "", movie.find("nav", {"class": "third-nav"}).a["href"]
-        )
+        movie_id = re.sub(r"\D", "", movie.find("span", {"class": "home"})["href"])
 
         return int(movie_id)
 
@@ -382,7 +380,9 @@ class AllocineScraper:
         if div_genres:
             movie_genres = [
                 genre.text
-                for genre in div_genres.find_all("span", class_=re.compile(r".*==$"))
+                for genre in div_genres.find_all(
+                    ["a", "span"], class_=re.compile(r".*-link$")
+                )
                 if "\n" not in genre.text
             ]
 
@@ -398,14 +398,15 @@ class AllocineScraper:
         Returns:
             Union[str, None]: The movie director(s).
         """
-        div_directors = movie.find(
-            "div", {"class": "meta-body-item meta-body-direction"}
+        div_directors = movie.find_all(
+            "div", {"class": "meta-body-item meta-body-direction meta-body-oneline"}
         )
+
         if div_directors:
             movie_directors = [
-                link.text
-                for link in div_directors.find_all(
-                    ["a", "span"], class_=re.compile(r".*blue-link$")
+                director.text
+                for director in div_directors[0].find_all(
+                    ["a", "span"], class_=re.compile(r".*-link$")
                 )
             ]
 
@@ -443,7 +444,7 @@ class AllocineScraper:
 
         movie_nationality = [
             nationality.text.strip()
-            for nationality in movie.find_all("span", class_="nationality")
+            for nationality in movie.find_all(["a", "span"], class_="nationality")
         ]
 
         return ", ".join(movie_nationality)
@@ -532,7 +533,11 @@ class AllocineScraper:
                     re.sub(
                         r"\D",
                         "",
-                        ratings.find("span", {"class": "stareval-review"}).text,
+                        (
+                            ratings.find(
+                                "span", {"class": "stareval-review"}
+                            ).text.split(",")[0]
+                        ),
                     )
                 )
         return None

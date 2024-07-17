@@ -1,7 +1,6 @@
 import dateparser
 import pandas as pd
 import pytest
-
 from allocine_dataset_scraper.scraper import AllocineScraper
 
 
@@ -98,7 +97,7 @@ def test__get_movie_genres(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie genres"""
     scraper = AllocineScraper()
     val = scraper._get_movie_genres(bs4_movie_page)
-    val_expected = "Drame, Science fiction"
+    val_expected = "Drame, Science Fiction"
     assert val == val_expected
     val = scraper._get_movie_genres(bs4_movie_page_exception)
     val_expected = None
@@ -131,7 +130,7 @@ def test__get_movie_nationality(bs4_movie_page):
     """Test the page parser to retrieve movie nationality"""
     scraper = AllocineScraper()
     val = scraper._get_movie_nationality(bs4_movie_page)
-    val_expected = "américain"
+    val_expected = "U.S.A."
     assert val == val_expected
 
 
@@ -139,7 +138,7 @@ def test__get_movie_press_rating(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie press rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_press_rating(bs4_movie_page)
-    val_expected = 2.4
+    val_expected = 2.5
     assert val == val_expected
     val = scraper._get_movie_press_rating(bs4_movie_page_exception)
     val_expected = None
@@ -151,7 +150,7 @@ def test__get_movie_number_of_press_rating(bs4_movie_page, bs4_movie_page_except
     number of press rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_number_of_press_rating(bs4_movie_page)
-    val_expected = 18.0
+    val_expected = 21.0
     assert val == val_expected
     val = scraper._get_movie_number_of_press_rating(bs4_movie_page_exception)
     val_expected = None
@@ -162,7 +161,7 @@ def test__get_movie_spec_rating(bs4_movie_page, bs4_movie_page_exception):
     """Test the page parser to retrieve movie spectator rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_spec_rating(bs4_movie_page)
-    val_expected = 2.2
+    val_expected = 2.4
     assert val == val_expected
     val = scraper._get_movie_spec_rating(bs4_movie_page_exception)
     val_expected = None
@@ -174,7 +173,7 @@ def test__get_movie_number_of_spec_rating(bs4_movie_page, bs4_movie_page_excepti
     number of spec rating"""
     scraper = AllocineScraper()
     val = scraper._get_movie_number_of_spec_rating(bs4_movie_page)
-    val_expected = 488101.0
+    val_expected = 3015.0
     assert val == val_expected
     val = scraper._get_movie_number_of_spec_rating(bs4_movie_page_exception)
     val_expected = None
