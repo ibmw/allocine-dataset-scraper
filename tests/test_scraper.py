@@ -1,6 +1,7 @@
 import dateparser
 import pandas as pd
 import pytest
+
 from allocine_dataset_scraper.scraper import AllocineScraper
 
 

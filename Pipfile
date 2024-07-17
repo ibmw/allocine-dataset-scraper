@@ -33,4 +33,4 @@ pytest-cov = "*"
 allocine-dataset-scraper = {file = ".", editable = true}
 
 [pipenv]
-allow_prereleases = true
+allow_prereleases = false

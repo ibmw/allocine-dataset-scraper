@@ -25,7 +25,7 @@ jobs:
           pipenv install --deploy --dev
 
       - name: Check isort
-        run: pipenv run isort --recursive --diff .
+        run: pipenv run isort --diff .
 
       - name: Check isort
         run: pipenv run black --check .
