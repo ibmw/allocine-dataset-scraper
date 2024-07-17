@@ -17,7 +17,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v1
         with:
-          python-version: 3.11
+          python-version: 3.12
 
       - name: Install dependencies with pipenv
         run: |
@@ -25,7 +25,7 @@ jobs:
           pipenv install --deploy --dev
 
       - name: Check isort
-        run: pipenv run isort --recursive --diff .
+        run: pipenv run isort --diff .
 
       - name: Check isort
         run: pipenv run black --check .
