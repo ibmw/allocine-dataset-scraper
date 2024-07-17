@@ -4,10 +4,9 @@ url = "https://pypi.python.org/simple"
 verify_ssl = true
 
 [requires]
-python_version = "3.11"
+python_version = "3.12"
 
 [packages]
-allocine-dataset-scraper = {editable = true, path = "."}
 requests = "*"
 beautifulsoup4 = "*"
 pandas = "*"
@@ -17,6 +16,7 @@ loguru = "*"
 dateparser = "*"
 click = "*"
 tqdm = "*"
+allocine-dataset-scraper = {file = "."}
 
 [dev-packages]
 black = "*"
@@ -30,6 +30,7 @@ types-requests = "*"
 pre-commit = "*"
 pytest = "*"
 pytest-cov = "*"
+allocine-dataset-scraper = {file = ".", editable = true}
 
 [pipenv]
 allow_prereleases = true
