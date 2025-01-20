@@ -1,3 +1,9 @@
+"""Command-line interface for the Allocine movie scraper.
+
+This module provides a CLI interface to configure and run the Allocine
+movie scraper with various options.
+"""
+
 from typing import Tuple
 
 import click
@@ -53,7 +59,21 @@ def cli(
     pause_scraping: Tuple[int, int] = (2, 10),  # Use proper tuple typing
     append_result: bool = False,
 ) -> None:
-    """Simple scraper that retrieve information about movie on AlloCine.fr."""
+    """Run the Allocine movie scraper with specified parameters.
+
+    Args:
+        number_of_pages: Number of pages to scrape. Defaults to 10.
+        from_page: First page number to scrape. Defaults to 1.
+        output_dir: Directory to save the CSV file. Defaults to "data".
+        output_csv_name: Name of the output CSV file. Defaults to "allocine_movies.csv".
+        pause_scraping: Tuple of (min, max) seconds to pause between requests.
+            Defaults to (2, 10).
+        append_result: Whether to append to existing CSV file. Defaults to False.
+
+    Example:
+        To scrape 5 pages starting from page 2:
+        $ python -m allocine_dataset_scraper.run --number_of_pages 5 --from_page 2
+    """
     click.echo(f"{number_of_pages=}")
     click.echo(f"{from_page=}")
     click.echo(f"{output_dir=}")
