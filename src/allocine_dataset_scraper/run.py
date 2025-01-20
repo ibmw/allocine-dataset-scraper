@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Tuple
 
 import click
 
@@ -46,12 +46,12 @@ from allocine_dataset_scraper.scraper import AllocineScraper
     show_default=True,
 )
 def cli(
-    number_of_pages: Optional[int] = 10,
-    from_page: Optional[int] = 1,
-    output_dir: Optional[str] = "data",
-    output_csv_name: Optional[str] = "allocine_movies.csv",
-    pause_scraping: tuple = (2, 10),
-    append_result: Optional[bool] = False,
+    number_of_pages: int = 10,  # Remove Optional as these have defaults
+    from_page: int = 1,
+    output_dir: str = "data",
+    output_csv_name: str = "allocine_movies.csv",
+    pause_scraping: Tuple[int, int] = (2, 10),  # Use proper tuple typing
+    append_result: bool = False,
 ) -> None:
     """Simple scraper that retrieve information about movie on AlloCine.fr."""
     click.echo(f"{number_of_pages=}")

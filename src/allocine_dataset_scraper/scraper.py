@@ -6,8 +6,9 @@ import re
 import sys
 import time
 import unicodedata
+from pathlib import Path
 from random import randrange
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 import bs4
 import dateparser
@@ -52,9 +53,9 @@ class AllocineScraper:
         first page number to scrape.
     """
 
-    ALLOCINE_URL = "https://www.allocine.fr/films/?page="
+    ALLOCINE_URL: str = "https://www.allocine.fr/films/?page="
 
-    movie_infos = [
+    movie_infos: List[str] = [
         "id",
         "title",
         "release_date",
@@ -70,16 +71,16 @@ class AllocineScraper:
         "summary",
     ]
 
-    df = pd.DataFrame(columns=movie_infos)
+    df: pd.DataFrame = pd.DataFrame(columns=movie_infos)
 
     def __init__(
         self,
-        number_of_pages: Optional[int] = 10,
-        from_page: Optional[int] = 1,
-        output_dir: Optional[str] = "data",
-        output_csv_name: Optional[str] = "allocine_movies.csv",
-        pause_scraping: Optional[List[int]] = None,
-        append_result=False,
+        number_of_pages: int = 10,
+        from_page: int = 1,
+        output_dir: str = "data",
+        output_csv_name: str = "allocine_movies.csv",
+        pause_scraping: Tuple[int, int] = (2, 10),
+        append_result: bool = False,
     ) -> None:
         """Initializes our Scraper class.
 
@@ -126,12 +127,10 @@ class AllocineScraper:
         self.output_csv_name = output_csv_name
 
         if not pause_scraping:
-            pause_scraping = [2, 10]
+            pause_scraping = (2, 10)
 
-        if not isinstance(pause_scraping, list):
-            raise ValueError(
-                f"<{pause_scraping=}> must be an integer or a list of integer"
-            )
+        if not isinstance(pause_scraping, tuple):
+            raise ValueError(f"<{pause_scraping=}> must be an Tuple of two integers")
 
         self.pause_scraping = pause_scraping
         self.append_result = append_result
@@ -161,7 +160,7 @@ class AllocineScraper:
         else:
             self.exclude_ids = []
 
-    def _get_page(self, page_number: int) -> requests.models.Response:
+    def _get_page(self, page_number: int) -> requests.Response:
         """Private method to get the full content of a webpage.
 
         Parameters
@@ -181,7 +180,7 @@ class AllocineScraper:
         return response
 
     @staticmethod
-    def _get_movie(url: str) -> requests.models.Response:
+    def _get_movie(url: str) -> requests.Response:
         """Private method to get the full content of a movie webpage.
 
         Parameters
@@ -202,7 +201,7 @@ class AllocineScraper:
         return randrange(*self.pause_scraping)
 
     @staticmethod
-    def _create_directory_if_not_exist(path_dir: str) -> None:
+    def _create_directory_if_not_exist(path_dir: Union[str, Path]) -> None:
         if not os.path.exists(path_dir):
             logger.info(f"{path_dir} doesn't exist. We try to create it...")
             try:
@@ -211,7 +210,7 @@ class AllocineScraper:
                 logger.error(f"Failed to create {path_dir}: {ex}")
                 raise OSError(f"Failed to create {path_dir}: {ex}")
 
-    def _parse_page(self, page: requests.models.Response) -> List[str]:
+    def _parse_page(self, page: requests.Response) -> List[str]:
         """Private method to parse a single result page from Allociné.fr.
 
         Parameters
@@ -243,7 +242,7 @@ class AllocineScraper:
 
         return urls
 
-    def _parse_movie(self, page: requests.models.Response) -> None:
+    def _parse_movie(self, page: requests.Response) -> None:
         parser = BeautifulSoup(page.content, "html.parser")
         parser_movie = parser.find("main", {"id": "content-layout"})
 
@@ -337,7 +336,7 @@ class AllocineScraper:
     @staticmethod
     def _get_movie_release_date(
         movie: bs4.element.Tag,
-    ) -> Union[datetime.datetime, None]:
+    ) -> Optional[datetime.datetime]:
         """Private method to retrieve the movie release date.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -352,7 +351,7 @@ class AllocineScraper:
         return movie_date
 
     @staticmethod
-    def _get_movie_duration(movie: bs4.element.Tag) -> int:
+    def _get_movie_duration(movie: bs4.element.Tag) -> Optional[int]:
         """Private method to retrieve the movie duration.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -368,7 +367,7 @@ class AllocineScraper:
         return movie_duration
 
     @staticmethod
-    def _get_movie_genres(movie: bs4.element.Tag) -> Union[str, None]:
+    def _get_movie_genres(movie: bs4.element.Tag) -> Optional[str]:
         """Private method to retrieve the movie genre(s).
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -391,7 +390,7 @@ class AllocineScraper:
         return None
 
     @staticmethod
-    def _get_movie_directors(movie: bs4.element.Tag) -> Union[str, None]:
+    def _get_movie_directors(movie: bs4.element.Tag) -> Optional[str]:
         """Private method to retrieve the movie director(s).
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -415,7 +414,7 @@ class AllocineScraper:
         return None
 
     @staticmethod
-    def _get_movie_actors(movie: bs4.element.Tag) -> Union[str, None]:
+    def _get_movie_actors(movie: bs4.element.Tag) -> Optional[str]:
         """Private method to retrieve the movie actor(s).
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -450,7 +449,7 @@ class AllocineScraper:
         return ", ".join(movie_nationality)
 
     @staticmethod
-    def _get_movie_press_rating(movie: bs4.element.Tag) -> Union[float, None]:
+    def _get_movie_press_rating(movie: bs4.element.Tag) -> Optional[float]:
         """Private method to retrieve the movie rating according to the press.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -471,7 +470,7 @@ class AllocineScraper:
         return None
 
     @staticmethod
-    def _get_movie_number_of_press_rating(movie: bs4.element.Tag) -> Union[float, None]:
+    def _get_movie_number_of_press_rating(movie: bs4.element.Tag) -> Optional[float]:
         """Private method to retrieve number of ratings from the press.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -494,7 +493,7 @@ class AllocineScraper:
         return None
 
     @staticmethod
-    def _get_movie_spec_rating(movie: bs4.element.Tag) -> Union[float, None]:
+    def _get_movie_spec_rating(movie: bs4.element.Tag) -> Optional[float]:
         """Private method to retrieve the movie rating according to the spectators.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -516,7 +515,7 @@ class AllocineScraper:
         return None
 
     @staticmethod
-    def _get_movie_number_of_spec_rating(movie: bs4.element.Tag) -> Union[float, None]:
+    def _get_movie_number_of_spec_rating(movie: bs4.element.Tag) -> Optional[float]:
         """Private method to retrieve number of ratings from the spectators.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
@@ -543,7 +542,7 @@ class AllocineScraper:
         return None
 
     @staticmethod
-    def _get_movie_summary(movie: bs4.element.Tag) -> Union[str, None]:
+    def _get_movie_summary(movie: bs4.element.Tag) -> Optional[str]:
         """Private method to retrieve the movie summary.
         Args:
             movie (bs4.element.Tag): Parser results with the movie page informations.
