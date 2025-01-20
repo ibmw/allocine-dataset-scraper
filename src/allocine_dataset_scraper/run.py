@@ -61,17 +61,24 @@ def cli(
 ) -> None:
     """Run the Allocine movie scraper with specified parameters.
 
+    This function runs the Allocine movie scraper to collect movie data from allocine.fr.
+    It scrapes movie details like title, release date, duration, genres, directors, actors,
+    ratings, etc. from the specified number of pages and saves them to a CSV file.
+
     Args:
-        number_of_pages: Number of pages to scrape. Defaults to 10.
-        from_page: First page number to scrape. Defaults to 1.
-        output_dir: Directory to save the CSV file. Defaults to "data".
+        number_of_pages: Number of pages to scrape. Must be positive. Defaults to 10.
+        from_page: First page number to scrape. Must be positive. Defaults to 1.
+        output_dir: Directory to save the CSV file. Will be created if it doesn't exist.
+            Defaults to "data".
         output_csv_name: Name of the output CSV file. Defaults to "allocine_movies.csv".
-        pause_scraping: Tuple of (min, max) seconds to pause between requests.
-            Defaults to (2, 10).
-        append_result: Whether to append to existing CSV file. Defaults to False.
+        pause_scraping: Tuple of (min, max) seconds to pause between requests to avoid
+            rate limiting. Min must be less than max. Defaults to (2, 10).
+        append_result: Whether to append to existing CSV file. If True and file doesn't
+            exist, raises error. Defaults to False.
 
     Raises:
-        ValueError: If input parameters are invalid (e.g., negative page numbers).
+        click.BadParameter: If number_of_pages or from_page is less than 1, or if
+            pause_scraping min is greater than max.
         FileNotFoundError: If append_result is True and the output file doesn't exist.
         requests.RequestException: If there are network issues during scraping.
         Exception: Any other unexpected errors during scraping.
@@ -81,23 +88,24 @@ def cli(
         $ python -m allocine_dataset_scraper.run --number_of_pages 5 --from_page 2
 
     Note:
+        Uses random delays between requests to avoid overloading the server.
         All errors are logged to stderr before being re-raised.
     """
     if number_of_pages < 1:
         raise click.BadParameter(
-            "number_of_pages must be positive",
-            param_hint=["--number_of_pages"],
+            "If a value is provided,number_of_pages must be positive",
+            param_hint="--number_of_pages",
         )
 
     if from_page < 1:
         raise click.BadParameter(
-            "from_page must be positive",
-            param_hint=["--from_page"],
+            "If a value is provided, from_page must be positive",
+            param_hint="--from_page",
         )
     if pause_scraping[0] > pause_scraping[1]:
         raise click.BadParameter(
             "Invalid pause range: minimum should be less than maximum",
-            param_hint=["--pause_scraping"],
+            param_hint="--pause_scraping",
         )
     click.echo("Starting AlloCine scraper with parameters:")
     click.echo(f"- Pages to scrape: {number_of_pages} (starting from {from_page})")
@@ -110,7 +118,7 @@ def cli(
             from_page,
             output_dir,
             output_csv_name,
-            list(pause_scraping),
+            pause_scraping,
             append_result,
         )
         scraper.scraping_movies()
