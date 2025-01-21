@@ -248,7 +248,11 @@ class AllocineScraper:
 
             movie_datas[info] = [scraped_info]
 
-        self.df = pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
+        self.df = (
+            pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
+            if not self.df.empty
+            else pd.DataFrame(movie_datas, columns=self.movie_infos)
+        )
 
         self.df.drop_duplicates(subset=["id"]).to_csv(f"{self.full_path_csv}", index=False)
 
