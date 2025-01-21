@@ -32,7 +32,7 @@
           run: uv run ruff format --check .
 
         - name: Check mypy
-          run: uv run mypy
+          run: uv run mypy .
 
         - name: Check pytest
           run: uv run pytest --cov --cov-fail-under=90 --cov-report xml
