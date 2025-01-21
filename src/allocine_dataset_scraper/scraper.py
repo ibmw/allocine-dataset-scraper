@@ -140,9 +140,7 @@ class AllocineScraper:
                 )
             except Exception as ex:
                 logger.error(f"Failed to load the csv {self.full_path_csv} -- {ex}")
-                raise FileNotFoundError(
-                    f"Failed to load the csv {self.full_path_csv} -- {ex}"
-                )
+                raise FileNotFoundError(f"Failed to load the csv {self.full_path_csv} -- {ex}")
         else:
             self.exclude_ids = []
 
@@ -159,9 +157,7 @@ class AllocineScraper:
             requests.RequestException: If the page fetch fails.
         """
 
-        response = requests.get(
-            self.ALLOCINE_URL + str(page_number)
-        )  # pragma: no cover
+        response = requests.get(self.ALLOCINE_URL + str(page_number))  # pragma: no cover
         return response
 
     @staticmethod
@@ -221,11 +217,7 @@ class AllocineScraper:
 
         if self.append_result and self.exclude_ids:
             ori_urls_len = len(urls)
-            urls = [
-                url
-                for url in urls
-                if int(url.split("=")[-1].split(".")[0]) not in self.exclude_ids
-            ]
+            urls = [url for url in urls if int(url.split("=")[-1].split(".")[0]) not in self.exclude_ids]
             urls_len = len(urls)
             logger.info(
                 f"""{ori_urls_len - urls_len} / {ori_urls_len}
@@ -258,9 +250,7 @@ class AllocineScraper:
 
         self.df = pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
 
-        self.df.drop_duplicates(subset=["id"]).to_csv(
-            f"{self.full_path_csv}", index=False
-        )
+        self.df.drop_duplicates(subset=["id"]).to_csv(f"{self.full_path_csv}", index=False)
 
     def scraping_movies(self) -> None:
         """Execute the movie scraping process.
@@ -274,12 +264,8 @@ class AllocineScraper:
 
         logger.info("Starting scraping movies from Allocine...")
 
-        for number in tqdm(
-            range(self.from_page, self.from_page + self.number_of_pages), desc="Pages"
-        ):
-            logger.info(
-                f"Fetching Page {number}/{self.from_page + self.number_of_pages}"
-            )
+        for number in tqdm(range(self.from_page, self.from_page + self.number_of_pages), desc="Pages"):
+            logger.info(f"Fetching Page {number}/{self.from_page + self.number_of_pages}")
             time.sleep(self._randomize_waiting_time())
             res_page = self._get_page(number)
             urls_to_parse = self._parse_page(res_page)
@@ -389,9 +375,7 @@ class AllocineScraper:
         if div_genres:
             movie_genres = [
                 genre.text
-                for genre in div_genres.find_all(
-                    ["a", "span"], class_=re.compile(r".*-link$")
-                )
+                for genre in div_genres.find_all(["a", "span"], class_=re.compile(r".*-link$"))
                 if "\n" not in genre.text
             ]
 
@@ -407,16 +391,11 @@ class AllocineScraper:
         Returns:
             The movie's directores or None if not found.
         """
-        div_directors = movie.find_all(
-            "div", {"class": "meta-body-item meta-body-direction meta-body-oneline"}
-        )
+        div_directors = movie.find_all("div", {"class": "meta-body-item meta-body-direction meta-body-oneline"})
 
         if div_directors:
             movie_directors = [
-                director.text
-                for director in div_directors[0].find_all(
-                    ["a", "span"], class_=re.compile(r".*-link$")
-                )
+                director.text for director in div_directors[0].find_all(["a", "span"], class_=re.compile(r".*-link$"))
             ]
 
             return ", ".join(movie_directors)
@@ -434,9 +413,7 @@ class AllocineScraper:
         div_actors = movie.find("div", {"class": "meta-body-item meta-body-actor"})
 
         if div_actors:
-            movie_actors = [actor.text for actor in div_actors.find_all(["a", "span"])][
-                1:
-            ]
+            movie_actors = [actor.text for actor in div_actors.find_all(["a", "span"])][1:]
 
             return ", ".join(movie_actors)
 
@@ -452,8 +429,7 @@ class AllocineScraper:
         """
 
         movie_nationality = [
-            nationality.text.strip()
-            for nationality in movie.find_all(["a", "span"], class_="nationality")
+            nationality.text.strip() for nationality in movie.find_all(["a", "span"], class_="nationality")
         ]
 
         return ", ".join(movie_nationality)
@@ -472,11 +448,7 @@ class AllocineScraper:
 
         for ratings in movie_ratings:
             if "Presse" in ratings.text:
-                return float(
-                    re.sub(
-                        ",", ".", ratings.find("span", {"class": "stareval-note"}).text
-                    )
-                )
+                return float(re.sub(",", ".", ratings.find("span", {"class": "stareval-note"}).text))
         return None
 
     @staticmethod
@@ -516,11 +488,7 @@ class AllocineScraper:
 
         for ratings in movie_ratings:
             if "Spectateurs" in ratings.text:
-                return float(
-                    re.sub(
-                        ",", ".", ratings.find("span", {"class": "stareval-note"}).text
-                    )
-                )
+                return float(re.sub(",", ".", ratings.find("span", {"class": "stareval-note"}).text))
 
         return None
 
@@ -542,11 +510,7 @@ class AllocineScraper:
                     re.sub(
                         r"\D",
                         "",
-                        (
-                            ratings.find(
-                                "span", {"class": "stareval-review"}
-                            ).text.split(",")[0]
-                        ),
+                        (ratings.find("span", {"class": "stareval-review"}).text.split(",")[0]),
                     )
                 )
         return None
@@ -560,9 +524,9 @@ class AllocineScraper:
             The movie's summary or None if not found.
         """
 
-        movie_summary = movie.find(
-            "section", {"class": "section ovw ovw-synopsis"}
-        ).find("div", {"class": "content-txt"})
+        movie_summary = movie.find("section", {"class": "section ovw ovw-synopsis"}).find(
+            "div", {"class": "content-txt"}
+        )
 
         if movie_summary:
             movie_summary = movie_summary.text.strip()

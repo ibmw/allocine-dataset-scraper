@@ -1,40 +1,38 @@
-name: Test
+  name: Test
 
-on:
-  pull_request: {}
-  push:
-    branches:
-      - master
-    tags:
-      - "*"
+  on:
+    pull_request: {}
+    push:
+      branches:
+        - master
+      tags:
+        - "*"
 
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
+  jobs:
+    test:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
 
-      - name: Setup Python
-        uses: actions/setup-python@v1
-        with:
-          python-version: 3.12
+        - name: Install uv
+          uses: astral-sh/setup-uv@v5
+        
+        - name: "Set up Python"
+          uses: actions/setup-python@v5
+          with:
+            python-version-file: ".python-version"
 
-      - name: Install dependencies with pipenv
-        run: |
-          pip install pipenv
-          pipenv install --deploy --dev
+        - name: Install dependencies with uv
+          run: uv sync --all-extras --dev
 
-      - name: Check isort
-        run: pipenv run isort --diff .
+        - name: Check ruff
+          run: uv run ruff check .
 
-      - name: Check isort
-        run: pipenv run black --check .
+        - name: Check ruff format
+          run: uv run ruff format --check .
 
-      - name: Check flake8
-        run: pipenv run flake8
+        - name: Check mypy
+          run: uv run mypy
 
-      - name: Check mypy
-        run: pipenv run mypy
-
-      - name: Check pytest
-        run: pipenv run pytest --cov --cov-fail-under=90 --cov-report xml
+        - name: Check pytest
+          run: uv run pytest --cov --cov-fail-under=90 --cov-report xml

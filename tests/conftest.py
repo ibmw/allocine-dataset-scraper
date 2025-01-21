@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 from bs4 import BeautifulSoup
-from requests.models import Response
+from requests import Response
 
 from allocine_dataset_scraper.utils import read_file
 

@@ -1,29 +1,46 @@
-FROM python:3.12-slim AS base
+# Install uv
+FROM python:3.12-slim-bookworm AS builder
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Setup env
-ENV LANG C.UTF-8
-ENV LC_ALL C.UTF-8
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONFAULTHANDLER 1
+# Change the working directory to the `app` directory
+WORKDIR /app
 
+# Install dependencies
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-editable
 
-FROM base AS python-deps
+# Copy the project into the intermediate image
+ADD . /app
 
-# Install pipenv and compilation dependencies
-RUN pip install pipenv
-RUN apt-get update && apt-get install -y --no-install-recommends gcc
+# Sync the project
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-editable
 
-# Create and switch to a new user
-RUN useradd --create-home appuser
-WORKDIR /home/appuser
+FROM python:3.12-slim-bookworm
 
-# Install python dependencies in /.venv
-COPY --chmod=777 . .
-RUN pipenv install --deploy --system
-RUN mkdir -p /home/appuser/data
-VOLUME ["/home/appuser/data"]
-USER appuser
+# Create app user and group with specific UID/GID
+RUN groupadd -r app --gid=1000 && \
+    useradd -r -g app --uid=1000 --create-home app
 
-# Run the executable
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/data && \
+    chown -R app:app /app && \
+    chmod 775 /app && \
+    chmod 775 /app/data
+
+WORKDIR /app
+USER app
+
+# Copy the environment, but not the source code
+COPY --from=builder --chown=app:app /app/.venv /app/.venv
+
+# Add virtual environment to PATH
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Run the application
 ENTRYPOINT ["fetch-allocine"]
-CMD ["--number_of_pages", "10", "--from_page", "1", "--output_csv_name", "allocine_movies.csv", "--pause_scraping", "2", "10"]
+CMD ["--number_of_pages", "10", "--from_page", "1", \
+     "--output_csv_name", "allocine_movies.csv", \
+     "--pause_scraping", "2", "10"]

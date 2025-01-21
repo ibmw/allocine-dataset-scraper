@@ -2,10 +2,7 @@
 **
 
 # ... except for dependencies and source
-!Pipfile
-!Pipfile.lock
+!uv.lock
 !src
-!VERSION
 !pyproject.toml
-!setup.cfg
 !data
