@@ -54,8 +54,5 @@ cover/
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# python version
-.python-version
-
 # macOS
 .DS_Store
