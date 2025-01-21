@@ -206,7 +206,7 @@ def test_scraping_movies_with_append(tmp_path, get_dataframe):
         from_page=1,
         output_dir=f"{path_dir}",
         output_csv_name=output_csv_name,
-        pause_scraping=[0, 1],
+        pause_scraping=(0, 1),
         append_result=True,
     )
 
@@ -230,7 +230,7 @@ def test_scraping_movies(tmp_path):
         from_page=1,
         output_dir=f"{path_dir}",
         output_csv_name=output_csv_name,
-        pause_scraping=[0, 1],
+        pause_scraping=(0, 1),
         append_result=False,
     )
 
@@ -275,7 +275,7 @@ def test_append_result_exception(tmp_path):
             from_page=1,
             output_dir=f"{path_dir}",
             output_csv_name=output_csv_name,
-            pause_scraping=[0, 1],
+            pause_scraping=(0, 1),
             append_result=True,
         )
 

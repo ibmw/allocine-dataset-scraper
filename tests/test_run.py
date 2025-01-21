@@ -67,12 +67,11 @@ def test_run(
     df_scraper = pd.read_csv(full_dir)
     end_shape = df_scraper.shape
 
-    assert f"{number_of_pages=}" in result.output
-    assert f"{from_page=}" in result.output
-    assert f"{output_dir=}" in result.output
-    assert f"{output_csv_name=}" in result.output
-    assert f"{pause_scraping=}" in result.output
-    assert f"{append_result=}" in result.output
+    assert "Starting AlloCine scraper with parameters:" in result.output
+    assert f"- Pages to scrape: {number_of_pages} (starting from {from_page})" in result.output
+    assert f"- Output: {output_dir}/{output_csv_name}" in result.output
+    assert f"- Pause between requests: {pause_scraping[0]}-{pause_scraping[1]}s" in result.output
+    assert f"- Mode: {'Append' if append_result else 'Overwrite'}" in result.output
     assert end_shape[1] == 13
     assert end_shape[0] > 0
     assert result.exit_code == 0
