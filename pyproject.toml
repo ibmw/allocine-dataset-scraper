@@ -25,6 +25,7 @@ dev = [
     "types-dateparser",
     "types-click",
     "types-tqdm",
+    "pytest-cov>=6.0.0",
 ]
 [tool.uv]
 package = true
