@@ -4,10 +4,10 @@ This module provides a CLI interface to configure and run the Allocine
 movie scraper with various options.
 """
 
-from typing import Tuple
-
 import click
+from loguru import logger
 
+from allocine_dataset_scraper.config import ScraperConfig, Settings
 from allocine_dataset_scraper.scraper import AllocineScraper
 
 
@@ -51,14 +51,7 @@ from allocine_dataset_scraper.scraper import AllocineScraper
     help="Append result to the output csv file",
     show_default=True,
 )
-def cli(
-    number_of_pages: int = 10,  # Remove Optional as these have defaults
-    from_page: int = 1,
-    output_dir: str = "data",
-    output_csv_name: str = "allocine_movies.csv",
-    pause_scraping: Tuple[int, int] = (2, 10),  # Use proper tuple typing
-    append_result: bool = False,
-) -> None:
+def cli(**kwargs) -> None:
     """Run the Allocine movie scraper with specified parameters.
 
     This function runs the Allocine movie scraper to collect movie data from allocine.fr.
@@ -91,40 +84,22 @@ def cli(
         Uses random delays between requests to avoid overloading the server.
         All errors are logged to stderr before being re-raised.
     """
-    if number_of_pages < 1:
-        raise click.BadParameter(
-            "If a value is provided,number_of_pages must be positive",
-            param_hint="--number_of_pages",
-        )
-
-    if from_page < 1:
-        raise click.BadParameter(
-            "If a value is provided, from_page must be positive",
-            param_hint="--from_page",
-        )
-    if pause_scraping[0] > pause_scraping[1]:
-        raise click.BadParameter(
-            "Invalid pause range: minimum should be less than maximum",
-            param_hint="--pause_scraping",
-        )
-    click.echo("Starting AlloCine scraper with parameters:")
-    click.echo(f"- Pages to scrape: {number_of_pages} (starting from {from_page})")
-    click.echo(f"- Output: {output_dir}/{output_csv_name}")
-    click.echo(f"- Pause between requests: {pause_scraping[0]}-{pause_scraping[1]}s")
-    click.echo(f"- Mode: {'Append' if append_result else 'Overwrite'}")
     try:
-        scraper = AllocineScraper(
-            number_of_pages,
-            from_page,
-            output_dir,
-            output_csv_name,
-            pause_scraping,
-            append_result,
-        )
+        config = ScraperConfig(**kwargs)
+
+        click.echo("Starting AlloCine scraper with parameters:")
+        click.echo(f"- Pages to scrape: {config.number_of_pages} (starting from {config.from_page})")
+        click.echo(f"- Output: {config.full_output_path}")
+        click.echo(f"- Pause between requests: {config.pause_scraping[0]}-{config.pause_scraping[1]}s")
+        click.echo(f"- Mode: {'Append' if config.append_result else 'Overwrite'}")
+
+        settings = Settings()
+        scraper = AllocineScraper(config, settings=settings)
         scraper.scraping_movies()
+
     except Exception as e:
-        click.echo(f"Error during scraping: {str(e)}", err=True)
-        raise
+        logger.error(f"Error during scraping: {str(e)}")
+        raise click.ClickException(str(e))
 
 
 if __name__ == "__main__":

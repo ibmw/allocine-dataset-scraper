@@ -76,3 +76,74 @@ def test_run(
     assert end_shape[0] > 0
     assert result.exit_code == 0
     assert not result.exception
+
+
+def test_run_with_invalid_directory(tmp_path):
+    """Test behavior with invalid output directory"""
+    runner = CliRunner()
+    invalid_dir = "/nonexistent/directory"
+    result = runner.invoke(
+        cli,
+        [
+            "--number_of_pages",
+            "1",
+            "--output_dir",
+            invalid_dir,
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Error" in result.output
+
+
+def test_run_with_invalid_pause_values():
+    """Test CLI with invalid pause values"""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--number_of_pages",
+            "1",
+            "--pause_scraping",
+            "10",
+            "5",  # max < min
+        ],
+    )
+    assert result.exit_code != 0
+    assert "Error" in result.output
+
+
+@pytest.mark.parametrize("pages", [-1, 0, "abc"])
+def test_run_with_invalid_page_numbers(pages):
+    """Test CLI with invalid page numbers"""
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--number_of_pages",
+            pages,
+        ],
+    )
+    assert result.exit_code != 0
+
+
+def test_run_output_file_permissions(tmp_path):
+    """Test behavior when output file can't be written"""
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+    output_file = path_dir / "test.csv"
+    output_file.touch()
+    output_file.chmod(0o444)  # Read-only
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--number_of_pages",
+            "1",
+            "--output_dir",
+            str(path_dir),
+            "--output_csv_name",
+            "test.csv",
+        ],
+    )
+    assert result.exit_code != 0

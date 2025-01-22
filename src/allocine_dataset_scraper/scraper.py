@@ -12,7 +12,7 @@ import time
 import unicodedata
 from pathlib import Path
 from random import randrange
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import bs4
 import dateparser
@@ -22,9 +22,11 @@ from bs4 import BeautifulSoup
 from loguru import logger
 from tqdm.auto import tqdm
 
+from allocine_dataset_scraper.config import ScraperConfig, Settings, settings
+
 logger.remove()
 logger.add("scraper.log", rotation="100 MB")
-logger.add(sys.stderr, level="CRITICAL")
+logger.add(sys.stderr, level=settings.log_level)
 
 
 class AllocineScraper:
@@ -47,8 +49,6 @@ class AllocineScraper:
         append_result: Whether to append to existing results.
     """
 
-    ALLOCINE_URL: str = "https://www.allocine.fr/films/?page="
-
     movie_infos: List[str] = [
         "id",
         "title",
@@ -67,82 +67,39 @@ class AllocineScraper:
 
     df: pd.DataFrame = pd.DataFrame(columns=movie_infos)
 
-    def __init__(
-        self,
-        number_of_pages: int = 10,
-        from_page: int = 1,
-        output_dir: str = "data",
-        output_csv_name: str = "allocine_movies.csv",
-        pause_scraping: Tuple[int, int] = (2, 10),
-        append_result: bool = False,
-    ) -> None:
+    def __init__(self, config: ScraperConfig, settings: Settings = settings) -> None:
         """Initialize the Allocine scraper.
 
         Args:
-            number_of_pages: Number of pages to scrape. Defaults to 10.
-            from_page: First page number to scrape. Defaults to 1.
-            output_dir: Directory to save the CSV file. Defaults to "data".
-            output_csv_name: Name of the output CSV file. Defaults to "allocine_movies.csv".
-            pause_scraping: Tuple of (min, max) seconds to pause between requests.
-                Defaults to (2, 10).
-            append_result: Whether to append to existing CSV file. Defaults to False.
+            config: Scraper configuration object
+            settings: Optional settings object. If None, uses global settings.
 
         Raises:
-            ValueError: If any input parameters are invalid.
             FileNotFoundError: If append_result is True and the CSV file doesn't exist.
         """
-
-        if not isinstance(number_of_pages, int) or number_of_pages < 1:
-            raise ValueError(f"<{number_of_pages=}> must be an integer superior to 1.")
-
-        self.number_of_pages = number_of_pages
-
-        if not isinstance(from_page, int) or from_page < 1:
-            raise ValueError(f"<{from_page=}> must be an integer superior to 0.")
-
-        self.from_page = from_page
-
-        if not isinstance(output_dir, str):
-            raise ValueError(f"<{output_dir=}> must have a valid name.")
-
-        self.output_dir = output_dir
-
-        if not isinstance(output_csv_name, str) or output_csv_name[-4:] != ".csv":
-            raise ValueError(f"<{output_csv_name=}> must have a valid CSV name.")
-
-        self.output_csv_name = output_csv_name
-
-        if not pause_scraping:
-            pause_scraping = (2, 10)
-
-        if not isinstance(pause_scraping, tuple):
-            raise ValueError(f"<{pause_scraping=}> must be an Tuple of two integers")
-
-        self.pause_scraping = pause_scraping
-        self.append_result = append_result
-        self.full_path_csv = f"{self.output_dir}/{self.output_csv_name}"
+        self.config = config
+        self.settings = settings
+        self.exclude_ids = []
 
         logger.info("Initializing Allocine Scraper...")
-        logger.info(f"- Number of pages to scrap: {self.number_of_pages}")
+        logger.info(f"- Number of pages to scrap: {self.config.number_of_pages}")
         logger.info(
-            f"""- Time to wait between pages between :
-            {self.pause_scraping[0]} sec and {self.pause_scraping[1]} sec"""
+            f"""- Time to wait between pages between:
+            {self.config.pause_scraping[0]} sec and {self.config.pause_scraping[1]} sec"""
         )
-        logger.info(f"- Results will be stored in: <{self.full_path_csv}>")
+        logger.info(f"- Results will be stored in: <{self.config.full_output_path}>")
 
-        if self.append_result:
+        if self.config.append_result:
             try:
-                self.df = pd.read_csv(self.full_path_csv)
+                self.df = pd.read_csv(self.config.full_output_path)
                 self.exclude_ids = self.df["id"].dropna().astype(int).tolist()
                 logger.info(
                     f"""- The list to exclude movies already fetch has been initialize
                     -- Total movie listed: {len(self.exclude_ids)}"""
                 )
             except Exception as ex:
-                logger.error(f"Failed to load the csv {self.full_path_csv} -- {ex}")
-                raise FileNotFoundError(f"Failed to load the csv {self.full_path_csv} -- {ex}")
-        else:
-            self.exclude_ids = []
+                logger.error(f"Failed to load the csv {self.config.full_output_path} -- {ex}")
+                raise FileNotFoundError(f"Failed to load the csv {self.config.full_output_path} -- {ex}")
 
     def _get_page(self, page_number: int) -> requests.Response:
         """Private method to fetch a movie listing page from Allocine.fr.
@@ -156,12 +113,12 @@ class AllocineScraper:
         Raises:
             requests.RequestException: If the page fetch fails.
         """
-
-        response = requests.get(self.ALLOCINE_URL + str(page_number))  # pragma: no cover
+        headers = {"User-Agent": self.settings.user_agent}
+        url = f"{self.settings.base_url}?page={page_number}"
+        response = requests.get(url, headers=headers)  # pragma: no cover
         return response
 
-    @staticmethod
-    def _get_movie(url: str) -> requests.Response:
+    def _get_movie(self, url: str) -> requests.Response:
         """Private method to fetch a specific movie page from Allocine.fr.
 
         Args:
@@ -173,7 +130,8 @@ class AllocineScraper:
         Raises:
             requests.RequestException: If the page fetch fails.
         """
-        response = requests.get(f"http://www.allocine.fr{url}")  # pragma: no cover
+        headers = {"User-Agent": self.settings.user_agent}
+        response = requests.get(f"{self.settings.base_url}{url}", headers=headers)  # pragma: no cover
         return response
 
     def _randomize_waiting_time(self) -> int:
@@ -182,7 +140,7 @@ class AllocineScraper:
         Returns:
             Number of seconds to wait.
         """
-        return randrange(*self.pause_scraping)
+        return randrange(*self.config.pause_scraping)
 
     @staticmethod
     def _create_directory_if_not_exist(path_dir: Union[str, Path]) -> None:
@@ -215,7 +173,7 @@ class AllocineScraper:
         parser = BeautifulSoup(page.content, "html.parser")
         urls = [url.a["href"] for url in parser.find_all("h2", class_="meta-title")]
 
-        if self.append_result and self.exclude_ids:
+        if self.config.append_result and self.exclude_ids:
             ori_urls_len = len(urls)
             urls = [url for url in urls if int(url.split("=")[-1].split(".")[0]) not in self.exclude_ids]
             urls_len = len(urls)
@@ -235,7 +193,7 @@ class AllocineScraper:
         parser = BeautifulSoup(page.content, "html.parser")
         parser_movie = parser.find("main", {"id": "content-layout"})
 
-        self._create_directory_if_not_exist(self.output_dir)
+        self._create_directory_if_not_exist(self.config.output_dir)
 
         movie_datas: Dict = {}
 
@@ -252,9 +210,9 @@ class AllocineScraper:
             pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
             if not self.df.empty
             else pd.DataFrame(movie_datas, columns=self.movie_infos)
-        )
+        ).drop_duplicates(subset=["id"])
 
-        self.df.drop_duplicates(subset=["id"]).to_csv(f"{self.full_path_csv}", index=False)
+        self.df.to_csv(f"{self.config.full_output_path}", index=False)
 
     def scraping_movies(self) -> None:
         """Execute the movie scraping process.
@@ -268,8 +226,10 @@ class AllocineScraper:
 
         logger.info("Starting scraping movies from Allocine...")
 
-        for number in tqdm(range(self.from_page, self.from_page + self.number_of_pages), desc="Pages"):
-            logger.info(f"Fetching Page {number}/{self.from_page + self.number_of_pages}")
+        for number in tqdm(
+            range(self.config.from_page, self.config.from_page + self.config.number_of_pages), desc="Pages"
+        ):
+            logger.info(f"Fetching Page {number}/{self.config.from_page + self.config.number_of_pages}")
             time.sleep(self._randomize_waiting_time())
             res_page = self._get_page(number)
             urls_to_parse = self._parse_page(res_page)
@@ -277,7 +237,7 @@ class AllocineScraper:
             for url in tqdm(
                 urls_to_parse,
                 desc="Movies",
-                leave=(number == (self.from_page + self.number_of_pages - 1)),
+                leave=(number == (self.config.from_page + self.config.number_of_pages - 1)),
             ):
                 logger.info(f"Fetching Movie {url}")
                 res_movie = self._get_movie(url)
@@ -299,7 +259,7 @@ class AllocineScraper:
             time.sleep(sleep_timer)
 
         logger.info("Done scraping Allocine.")
-        logger.info(f"Results are stored in {self.output_csv_name}.")
+        logger.info(f"Results are stored in {self.config.output_csv_name}.")
 
     @staticmethod
     def _get_movie_id(movie: bs4.element.Tag) -> int:
