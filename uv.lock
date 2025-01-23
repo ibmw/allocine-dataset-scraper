@@ -3,7 +3,7 @@ requires-python = ">=3.12"
 
 [[package]]
 name = "allocine-dataset-scraper"
-version = "2.2.3"
+version = "2.2.4"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

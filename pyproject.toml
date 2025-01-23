@@ -1,6 +1,6 @@
 [project]
 name = "allocine-dataset-scraper"
-version = "2.2.3"
+version = "2.2.4"
 description = "Scraping movies informations available on Allocine.fr"
 readme = "README.md"
 requires-python = ">=3.12"
