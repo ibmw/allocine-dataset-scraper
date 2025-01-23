@@ -276,7 +276,7 @@ def test__get_movie_summary(bs4_movie_page, bs4_movie_page_exception):
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_summary(bs4_movie_page)
-    val_expected = "Dans ce film post-apocalyptique, Augustine, scientifique solitaire basé en Arctique, tente l'impossible pour empêcher l'astronaute Sully et son équipage de rentrer sur Terre. Car il sait qu'une mystérieuse catastrophe planétaire est imminente...Inspiré du roman éponyme de Lily Brooks-Dalton, plébiscité par la critique."
+    val_expected = "Dans ce film post-apocalyptique, Augustine, scientifique solitaire basé en Arctique, tente l’impossible pour empêcher l'astronaute Sully et son équipage de rentrer sur Terre. Car il sait qu’une mystérieuse catastrophe planétaire est imminente...Inspiré du roman éponyme de Lily Brooks-Dalton, plébiscité par la critique."
     assert val == val_expected
     val = scraper._get_movie_summary(bs4_movie_page_exception)
     val_expected = None
