@@ -1,7 +1,14 @@
 """Command-line interface for the Allocine movie scraper.
 
 This module provides a CLI interface to configure and run the Allocine
-movie scraper with various options.
+movie scraper with various options. It handles parameter validation,
+scraper initialization, and error reporting.
+
+Functions:
+    cli: Main CLI entry point that processes command line arguments.
+
+Example:
+    $ python -m allocine_dataset_scraper.run --number_of_pages 5 --from_page 1
 """
 
 import click
@@ -54,35 +61,25 @@ from allocine_dataset_scraper.scraper import AllocineScraper
 def cli(**kwargs) -> None:
     """Run the Allocine movie scraper with specified parameters.
 
-    This function runs the Allocine movie scraper to collect movie data from allocine.fr.
-    It scrapes movie details like title, release date, duration, genres, directors, actors,
-    ratings, etc. from the specified number of pages and saves them to a CSV file.
+    This function initializes and runs the Allocine movie scraper based on
+    command line arguments. It handles configuration validation, scraper
+    setup, and error reporting.
 
-    Args:
-        number_of_pages: Number of pages to scrape. Must be positive. Defaults to 10.
-        from_page: First page number to scrape. Must be positive. Defaults to 1.
-        output_dir: Directory to save the CSV file. Will be created if it doesn't exist.
-            Defaults to "data".
-        output_csv_name: Name of the output CSV file. Defaults to "allocine_movies.csv".
-        pause_scraping: Tuple of (min, max) seconds to pause between requests to avoid
-            rate limiting. Min must be less than max. Defaults to (2, 10).
-        append_result: Whether to append to existing CSV file. If True and file doesn't
-            exist, raises error. Defaults to False.
+    Command Line Args:
+        number_of_pages: Number of pages to scrape (default: 10)
+        from_page: First page number to scrape (default: 1)
+        output_dir: Directory to save results (default: "data")
+        output_csv_name: Name of output CSV file (default: "allocine_movies.csv")
+        pause_scraping: Min and max seconds between requests (default: 2 10)
+        append_result: Whether to append to existing file (default: False)
 
     Raises:
-        click.BadParameter: If number_of_pages or from_page is less than 1, or if
-            pause_scraping min is greater than max.
-        FileNotFoundError: If append_result is True and the output file doesn't exist.
-        requests.RequestException: If there are network issues during scraping.
-        Exception: Any other unexpected errors during scraping.
+        click.BadParameter: If any parameters are invalid
+        FileNotFoundError: If append_result is True but file doesn't exist
+        Exception: Any other unexpected errors during scraping
 
     Example:
-        To scrape 5 pages starting from page 2:
-        $ python -m allocine_dataset_scraper.run --number_of_pages 5 --from_page 2
-
-    Note:
-        Uses random delays between requests to avoid overloading the server.
-        All errors are logged to stderr before being re-raised.
+        $ fetch-allocine --number_of_pages 5 --from_page 1
     """
     try:
         config = ScraperConfig(**kwargs)

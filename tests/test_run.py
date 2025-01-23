@@ -1,3 +1,10 @@
+"""Tests for the CLI interface module.
+
+This module contains tests for the command-line interface functionality
+in allocine_dataset_scraper.run. Tests cover parameter validation,
+error handling, and successful execution scenarios.
+"""
+
 import pandas as pd
 import pytest
 from click.testing import CliRunner
@@ -23,6 +30,22 @@ def test_run(
     pause_end,
     append_result,
 ):
+    """Test CLI execution with various parameter combinations.
+
+    Tests the scraper's CLI interface with different configurations including
+    pagination, pause times, and append modes.
+
+    Args:
+        monkeypatch: Pytest fixture for modifying objects
+        tmp_path: Pytest fixture providing temporary directory path
+        get_dataframe: Custom fixture providing test DataFrame
+        number_of_pages: Number of pages to scrape
+        from_page: Starting page number
+        pause_start: Minimum pause duration
+        pause_end: Maximum pause duration
+        append_result: Whether to append to existing results
+    """
+
     def mock_random(*args):
         return 0
 
@@ -79,7 +102,14 @@ def test_run(
 
 
 def test_run_with_invalid_directory(tmp_path):
-    """Test behavior with invalid output directory"""
+    """Test error handling when output directory is invalid.
+
+    Verifies that appropriate error is raised when trying to write
+    to an inaccessible directory.
+
+    Args:
+        tmp_path: Pytest fixture providing temporary directory path
+    """
     runner = CliRunner()
     invalid_dir = "/nonexistent/directory"
     result = runner.invoke(
@@ -96,7 +126,11 @@ def test_run_with_invalid_directory(tmp_path):
 
 
 def test_run_with_invalid_pause_values():
-    """Test CLI with invalid pause values"""
+    """Test error handling for invalid pause duration values.
+
+    Verifies that appropriate error is raised when minimum pause
+    duration is greater than maximum.
+    """
     runner = CliRunner()
     result = runner.invoke(
         cli,

@@ -1,3 +1,10 @@
+"""Tests for the Allocine scraper module.
+
+This module contains comprehensive tests for the AllocineScraper class,
+covering movie data extraction, parsing, error handling, and file operations.
+Tests use mocked responses to avoid actual web requests.
+"""
+
 import dateparser
 import pandas as pd
 import pytest
@@ -8,7 +15,11 @@ from allocine_dataset_scraper.scraper import AllocineScraper
 
 
 def test__get_page():
-    """Test that requests page return code 200 (patch)."""
+    """Test page request functionality.
+
+    Verifies that the page request returns a valid response with 200 status code.
+    Uses mocked response to avoid actual network requests.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     resp = scraper._get_page()
@@ -16,7 +27,11 @@ def test__get_page():
 
 
 def test__get_movie():
-    """Test that requests movie return code 200 (patch)."""
+    """Test individual movie page request functionality.
+
+    Verifies that the movie page request returns a valid response with 200 status code.
+    Uses mocked response to avoid actual network requests.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     resp = scraper._get_movie()
@@ -24,8 +39,10 @@ def test__get_movie():
 
 
 def test__randomize_waiting_time():
-    """Test that randomize waiting time return
-    a value inside the range."""
+    """Test random wait time generation.
+
+    Verifies that generated wait times fall within the configured range.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     pause_range = range(*config.pause_scraping)
@@ -33,8 +50,14 @@ def test__randomize_waiting_time():
 
 
 def test__create_directory_if_not_exist(tmp_path):
-    """Test that the directory are created, execute twice to check
-    behavior when the directory exist."""
+    """Test directory creation functionality.
+
+    Verifies that directories are created when they don't exist and
+    no errors occur when they already exist.
+
+    Args:
+        tmp_path: Pytest fixture providing temporary directory path.
+    """
     path_dir = str(tmp_path / "data")
     config = ScraperConfig()
     scraper = AllocineScraper(config)
@@ -44,8 +67,14 @@ def test__create_directory_if_not_exist(tmp_path):
     assert len(list(tmp_path.iterdir())) == 1
 
 
-def test__parse_page(response_page) -> None:
-    """Test the page parser to retrieve movie page url"""
+def test__parse_page(response_page):
+    """Test movie listing page parsing.
+
+    Verifies that movie URLs are correctly extracted from the listing page.
+
+    Args:
+        response_page: Fixture providing mock page response.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     urls = scraper._parse_page(response_page)
@@ -70,7 +99,13 @@ def test__parse_page(response_page) -> None:
 
 
 def test__get_movie_id(bs4_movie_page):
-    """Test the page parser to retrieve movie id"""
+    """Test movie ID extraction from page.
+
+    Verifies that the movie ID is correctly extracted from the HTML content.
+
+    Args:
+        bs4_movie_page: Fixture providing parsed BeautifulSoup movie page content.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_id(bs4_movie_page)
@@ -79,7 +114,14 @@ def test__get_movie_id(bs4_movie_page):
 
 
 def test__get_movie_title(bs4_movie_page):
-    """Test the page parser to retrieve movie title"""
+    """Test movie title extraction from page.
+
+    Verifies that the movie title is correctly extracted and cleaned
+    from the HTML content.
+
+    Args:
+        bs4_movie_page: Fixture providing parsed BeautifulSoup movie page content.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_title(bs4_movie_page)
@@ -88,7 +130,14 @@ def test__get_movie_title(bs4_movie_page):
 
 
 def test__get_movie_release_date(bs4_movie_page):
-    """Test the page parser to retrieve movie release date"""
+    """Test movie release date extraction and parsing.
+
+    Verifies that the release date is correctly extracted and parsed
+    into a datetime object.
+
+    Args:
+        bs4_movie_page: Fixture providing parsed BeautifulSoup movie page content.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_release_date(bs4_movie_page)
@@ -97,7 +146,14 @@ def test__get_movie_release_date(bs4_movie_page):
 
 
 def test__get_movie_duration(bs4_movie_page):
-    """Test the page parser to retrieve movie duration."""
+    """Test movie duration extraction and conversion.
+
+    Verifies that the duration is correctly extracted and converted
+    to minutes.
+
+    Args:
+        bs4_movie_page: Fixture providing parsed BeautifulSoup movie page content.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_duration(bs4_movie_page)
@@ -163,8 +219,15 @@ def test__get_movie_press_rating(bs4_movie_page, bs4_movie_page_exception):
 
 
 def test__get_movie_number_of_press_rating(bs4_movie_page, bs4_movie_page_exception):
-    """Test the page parser to retrieve movie
-    number of press rating"""
+    """Test press rating count extraction.
+
+    Verifies that the number of press ratings is correctly extracted,
+    and handles cases where ratings are missing.
+
+    Args:
+        bs4_movie_page: Fixture providing parsed BeautifulSoup movie page content.
+        bs4_movie_page_exception: Fixture providing page content with missing ratings.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_number_of_press_rating(bs4_movie_page)
@@ -176,7 +239,15 @@ def test__get_movie_number_of_press_rating(bs4_movie_page, bs4_movie_page_except
 
 
 def test__get_movie_spec_rating(bs4_movie_page, bs4_movie_page_exception):
-    """Test the page parser to retrieve movie spectator rating"""
+    """Test spectator rating extraction.
+
+    Verifies that the spectator rating is correctly extracted and converted
+    to float, and handles cases where ratings are missing.
+
+    Args:
+        bs4_movie_page: Fixture providing parsed BeautifulSoup movie page content.
+        bs4_movie_page_exception: Fixture providing page content with missing ratings.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_spec_rating(bs4_movie_page)
@@ -205,7 +276,7 @@ def test__get_movie_summary(bs4_movie_page, bs4_movie_page_exception):
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     val = scraper._get_movie_summary(bs4_movie_page)
-    val_expected = "Dans ce film post-apocalyptique, Augustine, scientifique solitaire basé en Arctique, tente l’impossible pour empêcher l'astronaute Sully et son équipage de rentrer sur Terre. Car il sait qu’une mystérieuse catastrophe planétaire est imminente...Inspiré du roman éponyme de Lily Brooks-Dalton, plébiscité par la critique."
+    val_expected = "Dans ce film post-apocalyptique, Augustine, scientifique solitaire basé en Arctique, tente l'impossible pour empêcher l'astronaute Sully et son équipage de rentrer sur Terre. Car il sait qu'une mystérieuse catastrophe planétaire est imminente...Inspiré du roman éponyme de Lily Brooks-Dalton, plébiscité par la critique."
     assert val == val_expected
     val = scraper._get_movie_summary(bs4_movie_page_exception)
     val_expected = None
@@ -298,6 +369,14 @@ def test_pause_scraping_exception():
 
 
 def test_append_result_exception(tmp_path):
+    """Test error handling when appending to nonexistent file.
+
+    Verifies that appropriate error is raised when trying to append
+    to a file that doesn't exist.
+
+    Args:
+        tmp_path: Pytest fixture providing temporary directory path.
+    """
     with pytest.raises(FileNotFoundError):
         path_dir = tmp_path / "data"
         output_csv_name = "allocine_movies.csv"
@@ -311,15 +390,19 @@ def test_append_result_exception(tmp_path):
             append_result=True,
         )
         scraper = AllocineScraper(config)
-
         scraper.scraping_movies()
 
 
 def test_parse_page_with_exclude_ids(response_page):
-    """Test page parsing with excluded movie IDs"""
-    config = ScraperConfig(
-        append_result=True,
-    )
+    """Test page parsing with excluded movie IDs.
+
+    Verifies that movies in the exclude list are properly filtered out
+    when in append mode.
+
+    Args:
+        response_page: Fixture providing mock page response.
+    """
+    config = ScraperConfig(append_result=True)
     scraper = AllocineScraper(config)
     scraper.exclude_ids = [251354, 229831]  # Exclude first two movies
     urls = scraper._parse_page(response_page)
@@ -329,17 +412,24 @@ def test_parse_page_with_exclude_ids(response_page):
 
 
 def test_randomize_waiting_time_bounds():
-    """Test that randomize waiting time respects bounds"""
+    """Test wait time generation bounds.
+
+    Verifies that generated wait times strictly respect the configured
+    minimum and maximum bounds.
+    """
     config = ScraperConfig(pause_scraping=(5, 10))
     scraper = AllocineScraper(config)
-    # Test multiple times to ensure bounds are respected
     for _ in range(100):
         wait_time = scraper._randomize_waiting_time()
         assert 5 <= wait_time <= 10
 
 
 def test_empty_dataframe_initialization():
-    """Test that DataFrame is properly initialized"""
+    """Test DataFrame initialization.
+
+    Verifies that the DataFrame is properly initialized with correct
+    columns and empty state.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     assert list(scraper.df.columns) == scraper.movie_infos
@@ -347,29 +437,45 @@ def test_empty_dataframe_initialization():
 
 
 def test_parse_movie_with_missing_data(response_movie):
-    """Test parsing movie with missing optional fields"""
+    """Test movie parsing with missing data.
+
+    Verifies that the parser handles missing optional fields gracefully
+    while still capturing required fields.
+
+    Args:
+        response_movie: Fixture providing mock movie response.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
-    # Modify response content to simulate missing data
     response_movie._content = response_movie._content.replace(b"stareval-note", b"missing-note")
     scraper._parse_movie(response_movie)
     assert scraper.df.iloc[0]["press_rating"] is None
-    assert scraper.df.iloc[0]["title"] is not None  # Required field should still exist
+    assert scraper.df.iloc[0]["title"] is not None
 
 
 def test_edge_case_movie_durations(bs4_movie_page):
-    """Test parsing various movie duration formats"""
+    """Test edge cases in movie duration parsing.
+
+    Verifies that the duration parser handles empty or missing
+    duration information correctly.
+
+    Args:
+        bs4_movie_page: Fixture providing parsed BeautifulSoup movie page content.
+    """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
 
-    # Test empty duration
     duration_tag = bs4_movie_page.find("span", {"class": "spacer"})
     duration_tag.next_sibling.replace_with("")
     assert scraper._get_movie_duration(bs4_movie_page) == ""
 
 
 def test_config_validation_edge_cases():
-    """Test edge cases for config validation"""
+    """Test configuration validation edge cases.
+
+    Verifies that the configuration validator properly catches invalid
+    values for number of pages, starting page, and pause duration range.
+    """
     with pytest.raises(ValidationError):
         ScraperConfig(number_of_pages=0)  # Should be > 0
 
@@ -381,11 +487,16 @@ def test_config_validation_edge_cases():
 
 
 def test_parse_movie_duplicate_handling(response_movie):
-    """Test handling of duplicate movie entries"""
+    """Test handling of duplicate movie entries.
+
+    Verifies that duplicate movies are properly handled when parsing,
+    ensuring only one copy of each movie is kept in the DataFrame.
+
+    Args:
+        response_movie: Fixture providing mock movie response.
+    """
     config = ScraperConfig(append_result=True)
     scraper = AllocineScraper(config)
     scraper._parse_movie(response_movie)
     scraper._parse_movie(response_movie)
-
-    # Check that duplicates are removed
     assert len(scraper.df) == 1

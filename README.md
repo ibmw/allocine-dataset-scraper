@@ -1,187 +1,172 @@
-  [![Test](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml/badge.svg?branch=master)](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml) [![Weekly Test](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/auto-test.yml/badge.svg)](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/auto-test.yml)
-  # AlloCine Dataset Scraper
+![Test](https://github.com/ibmw/allocine-dataset-scraper/actions/workflows/test.yml/badge.svg?branch=master)
+![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-  A scraper to fetch information about movies from Allociné.fr - a company which provides information on French cinema.
+# 🎬 AlloCine Dataset Scraper
+
+  A Python scraper for collecting movie information from Allociné.fr - the leading French cinema database.
 
   The script uses http://www.allocine.fr/films webpage to retrieve data as a .csv file saved in data directory.
 
-  **Collected Data**
+## 🌟 Features
 
-  - `id` : Allocine movie id
-  - `title` : Title of the movie (in french)
-  - `release_date`: Release date
-  - `duration`: Movie length
-  - `genres` : Type of movie (up to three different types)
-  - `directors` : Movie directors
-  - `actors` : Main characters of movie
-  - `nationality`: Nationality of the movie
-  - `press_rating`: Average of press ratings (from 0 to 5 stars)
-  - `number_of_press_rating`: Number of press ratings,
-  - `user_rating`:  AlloCiné users ratings (from 0 to 5 stars)
-  - `number_of_spec_rating`: Number of users ratings
-  - `summary` : Short summary of the movie in french
+  - Simple data collection with configurable rate limiting
+  - Smart duplicate handling and incremental updates
+  - CSV export with automatic directory creation
+  - Comprehensive logging with rotation (via loguru)
+  - Progress tracking with tqdm
+  - Type-safe configuration management (via pydantic)
+  - Docker support with non-root user security
+  - 90%+ test coverage
 
-  > **Note** : You could [download](https://www.olivier-maillot.fr/wp-content/uploads/2021/10/allocine_movies.csv) data scraped in October 2021 to avoid re-scraping all the data.
+## 📊 Data Collection
 
-  ## Getting Started
-  ### Installation
-  #### Install as a Python Library
+The scraper collects the following information for each movie:
 
-  Using [uv](https://github.com/astral-sh/uv) (recommended):
+| Field | Description |
+|-------|-------------|
+| id | Unique Allocine movie ID |
+| title | Movie title (in French) |
+| release_date | Release date |
+| duration | Movie length |
+| genres | Movie genres (up to three) |
+| directors | Movie directors |
+| actors | Main cast |
+| nationality | Movie nationality |
+| press_rating | Average press rating (0-5 stars) |
+| number_of_press_rating | Number of press ratings |
+| user_rating | User ratings (0-5 stars) |
+| number_of_spec_rating | Number of user ratings |
+| summary | Movie synopsis (in French) |
 
-  ```sh
-  uv pip install https://github.com/ibmw/allocine-dataset-scraper.git
-  ```
+> 💡 Quick Start: You can [download](https://www.olivier-maillot.fr/wp-content/uploads/2021/10/allocine_movies.csv) a pre-scraped dataset from October 2021 to avoid re-scraping.
 
-  Using pip:
+## 🚀 Usage
 
-  ```sh
-  pip install https://github.com/ibmw/allocine-dataset-scraper.git
-  ```
+### Prerequisites
 
-  #### Install As an SDK (Developer Mode)
+- Python 3.12+
+- uv (recommended for fast, reliable package management)
 
-  Using [uv](https://github.com/astral-sh/uv) (recommended):
+### Installation
 
-  ```sh
-  # Clone repo 
-  git clone https://github.com/ibmw/allocine-dataset-scraper.git
-  cd allocine-dataset-scraper
+**As a Python Package**
+```bash
+# with uv
+uv pip install git+https://github.com/ibmw/allocine-dataset-scraper.git
 
-  # Install dependencies
-  uv sync --all-extras --dev
-  ```
+# with pip
+pip install git+https://github.com/ibmw/allocine-dataset-scraper.git
+```
 
-  Using pip:
+### Running the Scraper
 
-  ```sh
-  # Clone repo 
-  git clone https://github.com/ibmw/allocine-dataset-scraper.git
-  cd allocine-dataset-scraper
+**CLI Usage**
 
-  # Install dependencies including dev dependencies
-  pip install -e ".[dev]"
-  ```
+```bash
+# Basic usage with default settings
+fetch-allocine
 
-  ### Development
+# Check available options
+fetch-allocine --help
+```
 
-  This project uses:
-  - [uv](https://github.com/astral-sh/uv) for fast, reliable Python package management
-  - [ruff](https://github.com/astral-sh/ruff) for lightning-fast Python linting and formatting
-  - [mypy](https://github.com/python/mypy) for static type checking
+*Available options:*
 
-  To run the quality checks:
+| Option | Type | Description | Default |
+|--------|------|-------------|---------|
+| --number_of_pages | INTEGER | Number of pages to scrape | 10 |
+| --from_page | INTEGER | First page to scrape | 1 |
+| --output_dir | TEXT | Directory for CSV output | data |
+| --output_csv_name | TEXT | Output filename | allocine_movies.csv |
+| --pause_scraping | INTEGER INTEGER | Range for pause duration (min max) | 2 10 |
+| --append_result | FLAG | Append to existing CSV | False |
+| --help | FLAG | Show help message and exit | - |
 
-  ```sh
-  # Run ruff linting
-  uv run ruff check .
+**Python API Usage**
 
-  # Run ruff formatting
-  uv run ruff format .
+```python
+from allocine_dataset_scraper.scraper import AllocineScraper
+from allocine_dataset_scraper.config import ScraperConfig
 
-  # Run type checking
-  uv run mypy
+config = ScraperConfig(
+    number_of_pages=5,
+    from_page=1,
+    output_dir="data",
+    output_csv_name="movies.csv",
+    pause_scraping=(2, 10),
+    append_result=False
+)
 
-  # Run tests with coverage
-  uv run pytest --cov
-  ```
+scraper = AllocineScraper(config)
+scraper.scraping_movies()
+```
 
-  ### Usage
+**Docker Usage**
 
-  #### CLI 
+```bash
+# Pull the latest release
+docker pull ghcr.io/ibmw/allocine-dataset-scraper:latest
 
-  Run the fetcher with default values:
+# Create output directory
+mkdir data
 
-  ```sh
-  fetch-allocine
-  ```
+# Run the scraper on 10 pages and save the result in allocine_movies.csv file
+docker run -v $PWD/data:/app/data:rw ghcr.io/ibmw/allocine-dataset-scraper:latest \
+  --number_of_pages 10 \
+  --output_csv_name allocine_movies.csv
+```
 
-  Check options with --help:
+## 🛠️ Development
 
-  ```sh
-  Usage: fetch-allocine [OPTIONS]
+### Setting Up Development Environment
+```bash
+# Clone the repository
+git clone https://github.com/ibmw/allocine-dataset-scraper.git
+cd allocine-dataset-scraper
 
-    Simple scraper that retrieve information about movie on AlloCine.fr.
+# Install dependencies with uv
+uv sync --all-extras --dev
+```
+### Quality Checks
+```bash
+# Run all checks
+uv run ruff check .        # Linting
+uv run ruff format .       # Formatting
+uv run mypy .             # Type checking
+uv run pytest --cov       # Tests with coverage
+```
 
-  Options:
-    --number_of_pages INTEGER    Number of page to scrape.  [default: 10]
-    --from_page INTEGER          First page to scrape.  [default: 1]
-    --output_dir TEXT            Directory name to output csv files.  [default:
-                                data]
-    --output_csv_name TEXT       Output file name (save in a data directory).
-                                [default: allocine_movies.csv]
-    --pause_scraping INTEGER...  Range to randomize pauses.  [default: 2, 10]
-    --append_result              Append result to the output csv file  [default:
-                                False]
-    --help                       Show this message and exit.
-  ```
+### Building Docker Image
+```bash
+# Build the image
+docker build -t allocine_dataset_scraper .
+```
+## 📝 Contributing
 
-  #### Inside a script / ipynb:
+Contributions are welcome! Please follow these steps:
+1. Fork the repository
+2. Create your feature branch (git checkout -b feature/AmazingFeature)
+3. Run quality checks before committing
+4. Commit your changes (git commit -m 'Add some AmazingFeature')
+5. Push to the branch (git push origin feature/AmazingFeature)
+6. Open a Pull Request
 
-  ```python
-  from allocine_dataset_scraper.scraper import AllocineScraper
+### Development Guidelines
+- Maintain test coverage above 90%
+- Use type hints consistently
+- Follow PEP 8 style guidelines (enforced by ruff)
+- Document new functions and classes with docstrings
 
-  scraper = AllocineScraper(
-      number_of_pages=5,
-      from_page=1,
-      output_dir="data",
-      output_csv_name="allocine_movies.csv",
-      pause_scraping=[0, 10],
-      append_result=False
-  )
-    
-  scraper.scraping_movies()
-  ```
+## 🔒 Security
+- Docker image runs as non-root user (UID 1000)
+- Rate limiting to respect website's resources
+- No sensitive data collection
 
-  NB: Print out help with `help(scraper)`
+## 📄 License
 
-  #### With Docker
-  ##### Pull mode 
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-  - **Step 1: Pull the image from [github package](https://github.com/ibmw/allocine-dataset-scraper/pkgs/container/allocine-dataset-scraper)**
-  ```sh
-  docker pull ghcr.io/ibmw/allocine-dataset-scraper:release
-  ```
-
-  - **Step 2: Create a data directory to store the csv file**
-  ```sh
-  mkdir data
-  ```
-
-  - **Step 3: Run the image with arguments**
-  ```sh
-  docker run -v $PWD/data:/home/app/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 
-  ```
-
-  *with append_result option*
-  ```sh
-  docker run -v $PWD/data:/home/app/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 --append_result
-  ```
-
-  ##### Build mode 
-
-  - **Step 1: Clone the repository**
-  ```sh
-  git clone https://github.com/ibmw/allocine-dataset-scraper.git
-  cd allocine-dataset-scraper
-  ```
-
-  - **Step 2: Build the image**
-  ```sh
-  docker build -t allocine_dataset_scraper .
-  ```
-
-  - **Step 3: Create a data directory**
-  ```sh
-  mkdir data
-  ```
-
-  - **Step 4: Run the image with arguments**
-  ```sh
-  docker run -v $PWD/data:/home/app/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 
-  ```
-
-  *with append_result option*
-  ```sh
-  docker run -v $PWD/data:/home/app/data:rw allocine_dataset_scraper --number_of_pages 10 --from_page 1 --output_csv_name allocine_movies_dkr.csv --pause_scraping 2 10 --append_result
-  ```
+## 🙏 Acknowledgments
+- Allociné for providing the movie data
+- The Python community for the amazing tools and libraries

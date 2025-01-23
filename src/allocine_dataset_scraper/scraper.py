@@ -1,7 +1,18 @@
 """Module for scraping movie information from Allocine.fr website.
 
 This module provides functionality to scrape movie data including titles, ratings,
-cast information, and other metadata from the Allocine.fr website.
+cast information, and other metadata from the Allocine.fr website. The scraper
+handles pagination, rate limiting, and data export to CSV format.
+
+Classes:
+    AllocineScraper: Main scraper class that handles all scraping operations.
+
+Example:
+    >>> from allocine_dataset_scraper.scraper import AllocineScraper
+    >>> from allocine_dataset_scraper.config import ScraperConfig
+    >>> config = ScraperConfig(number_of_pages=5)
+    >>> scraper = AllocineScraper(config)
+    >>> scraper.scraping_movies()
 """
 
 import datetime
@@ -33,20 +44,20 @@ class AllocineScraper:
     """A scraper for collecting movie information from Allocine.fr.
 
     This class handles the scraping of movie information from Allocine.fr,
-    including pagination, data parsing, and CSV export functionality.
+    including pagination, data parsing, and CSV export functionality. It implements
+    rate limiting and can either create new datasets or append to existing ones.
 
-    Attributes
-        ALLOCINE_URL: Base URL for the movie listing pages.
-        movie_infos: List of movie attributes to collect.
-        df: DataFrame storing the collected movie information.
-        exclude_ids: List of movie IDs to skip during scraping.
-        output_dir: Directory where results will be saved.
-        output_csv_name: Name of the output CSV file.
-        full_path_csv: Complete path to the output CSV file.
-        number_of_pages: Number of pages to scrape.
-        from_page: Starting page number.
-        pause_scraping: Tuple of min/max seconds to pause between requests.
-        append_result: Whether to append to existing results.
+    Attributes:
+        movie_infos (List[str]): List of movie attributes to collect.
+        df (pd.DataFrame): DataFrame storing the collected movie information.
+        config (ScraperConfig): Configuration object containing scraping parameters.
+        settings (Settings): Settings object containing global settings.
+        exclude_ids (List[int]): List of movie IDs to skip during scraping.
+
+    Example:
+        >>> config = ScraperConfig(number_of_pages=5)
+        >>> scraper = AllocineScraper(config)
+        >>> scraper.scraping_movies()
     """
 
     movie_infos: List[str] = [
@@ -102,16 +113,19 @@ class AllocineScraper:
                 raise FileNotFoundError(f"Failed to load the csv {self.config.full_output_path} -- {ex}")
 
     def _get_page(self, page_number: int) -> requests.Response:
-        """Private method to fetch a movie listing page from Allocine.fr.
+        """Fetch a movie listing page from Allocine.fr.
+
+        Makes an HTTP GET request to retrieve a page of movie listings.
+        Includes rate limiting and user agent spoofing for politeness.
 
         Args:
-            page_number: The page number to fetch.
+            page_number: The page number to fetch (1-based indexing).
 
         Returns:
             Response object containing the page content.
 
         Raises:
-            requests.RequestException: If the page fetch fails.
+            requests.RequestException: If the page fetch fails due to network/HTTP errors.
         """
         headers = {"User-Agent": self.settings.user_agent}
         url = f"{self.settings.base_url}?page={page_number}"
@@ -119,26 +133,32 @@ class AllocineScraper:
         return response
 
     def _get_movie(self, url: str) -> requests.Response:
-        """Private method to fetch a specific movie page from Allocine.fr.
+        """Fetch a specific movie page from Allocine.fr.
+
+        Makes an HTTP GET request to retrieve detailed information about a specific movie.
+        Includes rate limiting and user agent spoofing for politeness.
 
         Args:
-            url: The movie page URL to fetch.
+            url: The relative URL path to the movie page.
 
         Returns:
             Response object containing the movie page content.
 
         Raises:
-            requests.RequestException: If the page fetch fails.
+            requests.RequestException: If the page fetch fails due to network/HTTP errors.
         """
         headers = {"User-Agent": self.settings.user_agent}
         response = requests.get(f"{self.settings.base_url}{url}", headers=headers)  # pragma: no cover
         return response
 
     def _randomize_waiting_time(self) -> int:
-        """Private method to generate a random waiting time within the configured range.
+        """Generate a random waiting time within the configured range.
+
+        Used to implement polite scraping by adding random delays between requests.
+        The range is specified in the scraper configuration.
 
         Returns:
-            Number of seconds to wait.
+            Number of seconds to wait, randomly chosen from the configured range.
         """
         return randrange(*self.config.pause_scraping)
 
@@ -146,11 +166,14 @@ class AllocineScraper:
     def _create_directory_if_not_exist(path_dir: Union[str, Path]) -> None:
         """Create a directory if it doesn't exist.
 
+        Ensures the output directory exists before attempting to save files.
+        Creates parent directories as needed.
+
         Args:
             path_dir: Path to the directory to create.
 
         Raises:
-            OSError: If directory creation fails.
+            OSError: If directory creation fails due to permissions or other IO errors.
         """
         if not os.path.exists(path_dir):
             logger.info(f"{path_dir} doesn't exist. We try to create it...")
@@ -161,13 +184,16 @@ class AllocineScraper:
                 raise OSError(f"Failed to create {path_dir}: {ex}")
 
     def _parse_page(self, page: requests.Response) -> List[str]:
-        """Private method to parse a movie listing page to extract movie URLs.
+        """Parse a movie listing page to extract movie URLs.
+
+        Extracts all movie URLs from a listing page. If append mode is enabled,
+        filters out movies that have already been scraped.
 
         Args:
             page: Response object containing the page content.
 
         Returns:
-            List of movie page URLs found on the page.
+            List of relative URL paths to individual movie pages.
         """
 
         parser = BeautifulSoup(page.content, "html.parser")
@@ -185,7 +211,10 @@ class AllocineScraper:
         return urls
 
     def _parse_movie(self, page: requests.Response) -> None:
-        """Private method to parse a movie page and store the extracted information.
+        """Parse a movie page and store the extracted information.
+
+        Extracts all available movie information and stores it in the DataFrame.
+        Automatically saves the updated DataFrame to CSV after each movie.
 
         Args:
             page: Response object containing the movie page content.
