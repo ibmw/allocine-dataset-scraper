@@ -393,17 +393,25 @@ def test_append_result_exception(tmp_path):
         scraper.scraping_movies()
 
 
-def test_parse_page_with_exclude_ids(response_page):
+def test_parse_page_with_exclude_ids(tmp_path, response_page):
     """Test page parsing with excluded movie IDs.
 
     Verifies that movies in the exclude list are properly filtered out
     when in append mode.
 
     Args:
+        tmp_path: Pytest fixture providing temporary directory path.
         response_page: Fixture providing mock page response.
     """
-    config = ScraperConfig(append_result=True)
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+
+    config = ScraperConfig(
+        output_dir=f"{path_dir}",
+        append_result=False,
+    )
     scraper = AllocineScraper(config)
+    scraper.config.append_result = True
     scraper.exclude_ids = [251354, 229831]  # Exclude first two movies
     urls = scraper._parse_page(response_page)
     assert len(urls) == 13  # Original length minus 2
