@@ -215,4 +215,4 @@ def test_run_with_retry_options(tmp_path, monkeypatch):
         ],
     )
     assert result.exit_code == 0
-    assert options_asserted is True
+    assert options_asserted
