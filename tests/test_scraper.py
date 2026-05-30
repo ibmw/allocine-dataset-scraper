@@ -485,10 +485,10 @@ def test_config_validation_edge_cases():
     values for number of pages, starting page, and pause duration range.
     """
     with pytest.raises(ValidationError):
-        ScraperConfig(number_of_pages=0)  # Should be > 0
+        ScraperConfig(number_of_pages=int("0"))  # Should be > 0
 
     with pytest.raises(ValidationError):
-        ScraperConfig(from_page=0)  # Should be > 0
+        ScraperConfig(from_page=int("0"))  # Should be > 0
 
     with pytest.raises(ValidationError):
         ScraperConfig(pause_scraping=(5, 3))  # Max should be > min
@@ -508,3 +508,35 @@ def test_parse_movie_duplicate_handling(response_movie):
     scraper._parse_movie(response_movie)
     scraper._parse_movie(response_movie)
     assert len(scraper.df) == 1
+
+
+def test_parse_movie_invalid_html(response_movie):
+    """Test movie parsing when page HTML is invalid (missing content-layout).
+
+    Verifies that the parser returns early without crashing.
+    """
+    config = ScraperConfig()
+    scraper = AllocineScraper(config)
+    response_movie._content = b"<html><body>No movie content here</body></html>"
+    scraper._parse_movie(response_movie)
+    assert len(scraper.df) == 0
+
+
+def test_parse_movie_generic_exception(response_movie, monkeypatch):
+    """Test movie parsing when a parser method raises a generic Exception.
+
+    Verifies that the exception is caught, logged, and fields set to None instead of crashing.
+    """
+    config = ScraperConfig()
+    scraper = AllocineScraper(config)
+
+    def mock_get_id(movie):
+        raise ValueError("Mock extraction failure")
+
+    monkeypatch.setattr(
+        "allocine_dataset_scraper.scraper.AllocineScraper._get_movie_id",
+        mock_get_id,
+    )
+    scraper._parse_movie(response_movie)
+    assert len(scraper.df) == 1
+    assert scraper.df.iloc[0]["id"] is None

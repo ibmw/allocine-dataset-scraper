@@ -129,7 +129,7 @@ class AllocineScraper:
         """
         headers = {"User-Agent": self.settings.user_agent}
         url = f"{self.settings.base_url}?page={page_number}"
-        response = requests.get(url, headers=headers)  # pragma: no cover
+        response = requests.get(url, headers=headers, timeout=self.settings.request_timeout)  # pragma: no cover
         return response
 
     def _get_movie(self, url: str) -> requests.Response:
@@ -148,7 +148,9 @@ class AllocineScraper:
             requests.RequestException: If the page fetch fails due to network/HTTP errors.
         """
         headers = {"User-Agent": self.settings.user_agent}
-        response = requests.get(f"{self.settings.base_url}{url}", headers=headers)  # pragma: no cover
+        response = requests.get(
+            f"{self.settings.base_url}{url}", headers=headers, timeout=self.settings.request_timeout
+        )  # pragma: no cover
         return response
 
     def _randomize_waiting_time(self) -> int:
@@ -222,6 +224,10 @@ class AllocineScraper:
         parser = BeautifulSoup(page.content, "html.parser")
         parser_movie = parser.find("main", {"id": "content-layout"})
 
+        if parser_movie is None:
+            logger.error("Could not find 'content-layout' main element in movie page. Skipping.")
+            return
+
         self._create_directory_if_not_exist(self.config.output_dir)
 
         movie_datas: Dict = {}
@@ -229,7 +235,7 @@ class AllocineScraper:
         for info in self.movie_infos:
             try:
                 scraped_info = getattr(self, "_get_movie_" + info)(parser_movie)
-            except AttributeError as ex:  # pragma: no cover
+            except Exception as ex:  # pragma: no cover
                 logger.error(f"<id:{movie_datas.get('id')}, info:{info}>: {ex}")
                 scraped_info = None
 

@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     log_level: str = Field(
         default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$", description="Logging level"
     )
+    request_timeout: int = Field(default=10, gt=0, description="Timeout in seconds for HTTP requests")
 
     model_config = SettingsConfigDict(
         env_prefix="ALLOCINE_",
