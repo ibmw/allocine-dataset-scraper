@@ -84,6 +84,7 @@ fetch-allocine --help
 | --retry-errors | FLAG | Stand-alone retry phase to correct logged errors | False |
 | --auto-retry | FLAG | Automatically retry errors at the end of the run | False |
 | --max-retries | INTEGER | Max retry count for corrupted/failed movies | 3 |
+| --validate-only | FLAG | Only run data validation flow on already scraped CSV | False |
 | --help | FLAG | Show help message and exit | - |
 
 **Python API Usage**

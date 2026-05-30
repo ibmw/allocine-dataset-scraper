@@ -520,14 +520,14 @@ def test_parse_movie_invalid_html(response_movie):
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     response_movie._content = b"<html><body>No movie content here</body></html>"
-    
+
     # Test fallback URL parsing success
     response_movie.url = "http://www.allocine.fr/film/fichefilm_gen_cfilm=12345.html"
     scraper._parse_movie(response_movie)
     assert len(scraper.df) == 0
     assert len(scraper.staged_errors) == 1
     assert scraper.staged_errors[0]["movie_id"] == 12345
-    
+
     # Test fallback URL parsing failure (exception branch)
     scraper.staged_errors = []
     response_movie.url = "http://www.allocine.fr/no-id-here"
@@ -633,6 +633,7 @@ def test_movie_data_validation():
 
     # Too far future date (more than 5 years in the future)
     import datetime
+
     future_movie = clean_movie.copy()
     future_movie["release_date"] = pd.to_datetime(f"{datetime.datetime.now().year + 6}-01-01")
     errors2 = validate_movie(future_movie)
@@ -802,7 +803,9 @@ def test_scraper_retry_boundary_cases(tmp_path, monkeypatch):
 
     # 3. retry_failed_movies when df_report is empty (covers 428-430)
     report_path = config.full_quality_report_path
-    pd.DataFrame(columns=["movie_id", "movie_title", "error_type", "field", "value", "reason", "retry_count", "timestamp"]).to_csv(report_path, index=False)  # type: ignore
+    pd.DataFrame(
+        columns=["movie_id", "movie_title", "error_type", "field", "value", "reason", "retry_count", "timestamp"]
+    ).to_csv(report_path, index=False)  # type: ignore
     scraper2.retry_failed_movies()
 
     # 4. retry_failed_movies when df_report has only movies that reached max retries (covers 431-434)
@@ -866,3 +869,106 @@ def test_scraper_empty_boundaries(tmp_path):
 
     # Test retry_failed_movies with empty list
     scraper.retry_failed_movies(movie_ids=[])
+
+
+def test_validate_scraped_data(tmp_path, monkeypatch):
+    """Test the validate_scraped_data method with different scenarios."""
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+    csv_file = path_dir / "allocine_movies.csv"
+
+    # Scenario 1: File does not exist
+    config_missing = ScraperConfig(output_dir=path_dir)
+    scraper_missing = AllocineScraper(config_missing)
+    with pytest.raises(FileNotFoundError):
+        scraper_missing.validate_scraped_data()
+
+    # Scenario 2: File is empty (causes EmptyDataError)
+    pd.DataFrame().to_csv(csv_file, index=False)
+    scraper_empty = AllocineScraper(config_missing)
+    scraper_empty.validate_scraped_data()
+    # Should complete without error
+
+    # Scenario 2b: File has columns but no rows (empty DataFrame success)
+    pd.DataFrame(columns=["id", "title"]).to_csv(csv_file, index=False)
+    scraper_empty_rows = AllocineScraper(config_missing)
+    scraper_empty_rows.validate_scraped_data()
+
+    # Scenario 3: Clean data
+    clean_movie = {
+        "id": 123,
+        "title": "Clean Movie",
+        "release_date": "2020-01-01 00:00:00",
+        "duration": 120,
+        "genres": "Drama",
+        "directors": "John Doe",
+        "actors": "Actor A",
+        "nationality": "France",
+        "press_rating": 4.0,
+        "number_of_press_rating": 20.0,
+        "spec_rating": 4.5,
+        "number_of_spec_rating": 100.0,
+        "summary": "This is a clean movie.",
+    }
+    pd.DataFrame([clean_movie]).to_csv(csv_file, index=False)
+    scraper_clean = AllocineScraper(config_missing)
+    scraper_clean.validate_scraped_data()
+    assert len(scraper_clean.staged_errors) == 0
+    assert not config_missing.full_quality_report_path.exists()
+
+    # Scenario 4: Corrupt data (absurd values, NaN coercion, etc.)
+    corrupt_movie = {
+        "id": -5,  # Invalid ID
+        "title": "Corrupt Movie",
+        "release_date": "1800-01-01 00:00:00",  # Invalid date
+        "duration": float("nan"),  # Missing but optional, should handle NaN coercion
+        "genres": "Drama",
+        "directors": "John Doe",
+        "actors": "Actor A",
+        "nationality": "France",
+        "press_rating": 6.0,  # Invalid press rating
+        "number_of_press_rating": 20.0,
+        "spec_rating": 4.5,
+        "number_of_spec_rating": 9999999.0,  # Too high rating count
+        "summary": "This is a corrupt movie.",
+    }
+    pd.DataFrame([corrupt_movie]).to_csv(csv_file, index=False)
+    scraper_corrupt = AllocineScraper(config_missing)
+    scraper_corrupt.validate_scraped_data()
+
+    # Should find validation errors by verifying the quality report file was created
+    assert config_missing.full_quality_report_path.exists()
+    df_report = pd.read_csv(config_missing.full_quality_report_path)
+    assert len(df_report) > 0
+    # Ensure ID and spec rating counts failed
+    failed_fields = df_report["field"].tolist()
+    assert "id" in failed_fields
+    assert "release_date" in failed_fields
+    assert "press_rating" in failed_fields
+    assert "number_of_spec_rating" in failed_fields
+
+    # Scenario 5: Non-numeric values for coercion failure exceptions
+    coercion_movie = {
+        "id": "not-an-int",
+        "title": "Coercion Fail Movie",
+        "release_date": "2020-01-01 00:00:00",
+        "duration": "not-an-int",
+        "genres": "Drama",
+        "directors": "John Doe",
+        "actors": "Actor A",
+        "nationality": "France",
+        "press_rating": 4.0,
+        "number_of_press_rating": 20.0,
+        "spec_rating": 4.5,
+        "number_of_spec_rating": 100.0,
+        "summary": "Coercion test",
+    }
+    pd.DataFrame([coercion_movie]).to_csv(csv_file, index=False)
+    scraper_coercion = AllocineScraper(config_missing)
+    scraper_coercion.validate_scraped_data()
+
+    # Scenario 6: Exception when reading the CSV file (generic Exception block)
+    monkeypatch.setattr(pd, "read_csv", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("Mock read error")))
+    scraper_error = AllocineScraper(config_missing)
+    with pytest.raises(RuntimeError):
+        scraper_error.validate_scraped_data()

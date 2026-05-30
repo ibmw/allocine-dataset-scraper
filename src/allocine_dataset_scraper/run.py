@@ -79,6 +79,13 @@ from allocine_dataset_scraper.scraper import AllocineScraper
     help="Max retry attempts for corrupted/failed movies",
     show_default=True,
 )
+@click.option(
+    "--validate-only",
+    is_flag=True,
+    default=False,
+    help="Only run the data validation flow on the already scraped CSV file",
+    show_default=True,
+)
 def cli(**kwargs) -> None:
     """Run the Allocine movie scraper with specified parameters.
 
@@ -93,17 +100,26 @@ def cli(**kwargs) -> None:
         output_csv_name: Name of output CSV file (default: "allocine_movies.csv")
         pause_scraping: Min and max seconds between requests (default: 2 10)
         append_result: Whether to append to existing file (default: False)
+        validate_only: Whether to only run validation flow on the output CSV file (default: False)
 
     Raises:
         click.BadParameter: If any parameters are invalid
         FileNotFoundError: If append_result is True but file doesn't exist
-        Exception: Any other unexpected errors during scraping
+        Exception: Any other unexpected errors during scraping or validation
 
     Example:
         $ fetch-allocine --number_of_pages 5 --from_page 1
     """
     try:
         config = ScraperConfig(**kwargs)
+
+        if config.validate_only:
+            click.echo("Starting AlloCine data validation flow:")
+            click.echo(f"- Input file: {config.full_output_path}")
+            settings = Settings()
+            scraper = AllocineScraper(config, settings=settings)
+            scraper.validate_scraped_data()
+            return
 
         click.echo("Starting AlloCine scraper with parameters:")
         click.echo(f"- Pages to scrape: {config.number_of_pages} (starting from {config.from_page})")

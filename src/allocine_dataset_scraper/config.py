@@ -37,6 +37,9 @@ class ScraperConfig(BaseModel):
         default=False, description="Whether to automatically retry failures at the end of a regular run"
     )
     max_retries: int = Field(default=3, gt=0, description="Maximum number of retry attempts for a corrupted movie")
+    validate_only: bool = Field(
+        default=False, description="Whether to only run the data validation flow on the already scraped CSV file"
+    )
 
     @field_validator("pause_scraping")
     def validate_pause_range(cls, v: Tuple[int, int]) -> Tuple[int, int]:

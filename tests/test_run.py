@@ -216,3 +216,34 @@ def test_run_with_retry_options(tmp_path, monkeypatch):
     )
     assert result.exit_code == 0
     assert options_asserted
+
+
+def test_run_with_validate_only(tmp_path, monkeypatch):
+    """Test CLI execution with --validate-only option."""
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+
+    validate_called = False
+
+    def mock_validate_scraped_data(self):
+        nonlocal validate_called
+        assert self.config.validate_only is True
+        validate_called = True
+
+    monkeypatch.setattr(
+        "allocine_dataset_scraper.scraper.AllocineScraper.validate_scraped_data",
+        mock_validate_scraped_data,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--output_dir",
+            str(path_dir),
+            "--validate-only",
+        ],
+    )
+    assert result.exit_code == 0
+    assert "Starting AlloCine data validation flow:" in result.output
+    assert validate_called

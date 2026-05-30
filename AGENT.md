@@ -151,6 +151,7 @@ To protect the dataset from corrupted metadata, each scraped movie is validated 
 - **Quality Logging**: Errors are logged to `data_quality_report.csv` indicating `movie_id`, `movie_title`, `error_type`, `field`, `value`, `reason`, `retry_count`, and `timestamp`.
 - **End-of-Run Retry (`--auto-retry`)**: If auto-retry is enabled, the scraper automatically attempts a second retry pass specifically on movies that failed during the current run, deferred until pagination completes.
 - **Stand-alone Error Correction (`--retry-errors`)**: Enables retrying errors from past runs. Reads `data_quality_report.csv`, fetches pages directly, validates them, merges successfully corrected rows into the main CSV (using `keep="last"`), and purges them from the report.
+- **Standalone Validation Flow (`--validate-only`)**: Runs validation directly on the already scraped CSV file. Reads each record, applies validation checks, logs warnings, and writes failures to `data_quality_report.csv` for downstream correction.
 - **Retry Ceilings**: A movie increments its `retry_count` in the quality report CSV upon repeated failures. Once `retry_count >= max_retries` (default: 3), it is bypassed to prevent redundant calls.
 ```
 

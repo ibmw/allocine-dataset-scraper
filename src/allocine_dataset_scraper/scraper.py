@@ -150,11 +150,10 @@ class AllocineScraper:
             requests.RequestException: If the page fetch fails due to network/HTTP errors.
         """
         from urllib.parse import urljoin
+
         headers = {"User-Agent": self.settings.user_agent}
         full_url = urljoin(self.settings.base_url, url)
-        response = requests.get(
-            full_url, headers=headers, timeout=self.settings.request_timeout
-        )  # pragma: no cover
+        response = requests.get(full_url, headers=headers, timeout=self.settings.request_timeout)  # pragma: no cover
         return response
 
     def _randomize_waiting_time(self) -> int:
@@ -540,6 +539,76 @@ class AllocineScraper:
                     scrape_err["retry_count"] = 1
                     self.staged_errors.append(scrape_err)
                     self._write_staged_errors()
+
+    def validate_scraped_data(self) -> None:
+        """Validate already scraped movie data from the CSV file and report errors."""
+        csv_path = self.config.full_output_path
+        if not csv_path.exists():
+            logger.error(f"Scraped data file not found at: {csv_path}")
+            raise FileNotFoundError(f"Scraped data file not found at: {csv_path}")
+
+        logger.info(f"Loading scraped data from {csv_path}...")
+        try:
+            df_scraped = pd.read_csv(csv_path)
+        except pd.errors.EmptyDataError:
+            logger.info("Scraped data file is empty. Nothing to validate.")
+            return
+        except Exception as e:
+            logger.error(f"Failed to read CSV file {csv_path}: {e}")
+            raise
+
+        if df_scraped.empty:
+            logger.info("Scraped data file is empty. Nothing to validate.")
+            return
+
+        logger.info(f"Validating {len(df_scraped)} movie(s)...")
+
+        self.staged_errors = []
+
+        for _, row in tqdm(df_scraped.iterrows(), total=len(df_scraped), desc="Validating"):
+            movie_data = row.to_dict()
+            cleaned_data = {}
+            for k, v in movie_data.items():
+                if pd.isna(v):
+                    cleaned_data[k] = None
+                else:
+                    cleaned_data[k] = v
+
+            # Coerce fields that may have been loaded as float due to NaN
+            if cleaned_data.get("id") is not None:
+                try:
+                    cleaned_data["id"] = int(cleaned_data["id"])
+                except ValueError:
+                    pass
+            if cleaned_data.get("duration") is not None:
+                try:
+                    cleaned_data["duration"] = int(cleaned_data["duration"])
+                except ValueError:
+                    pass
+
+            validation_errors = validate_movie(cleaned_data)
+            if validation_errors:
+                logger.warning(f"Movie {cleaned_data.get('id')} ({cleaned_data.get('title')}) failed data validation:")
+                for err in validation_errors:
+                    logger.warning(f"  - {err['field']}: {err['reason']} (value: {err['value']})")
+                    self.staged_errors.append(
+                        {
+                            "movie_id": cleaned_data.get("id", 0),
+                            "movie_title": cleaned_data.get("title", "Unknown"),
+                            "error_type": "BAD_DATA",
+                            "field": err["field"],
+                            "value": str(err["value"]),
+                            "reason": err["reason"],
+                            "retry_count": 0,
+                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                    )
+
+        if self.staged_errors:
+            logger.warning(f"Validation finished. Found {len(self.staged_errors)} error(s).")
+            self._write_staged_errors()
+        else:
+            logger.info("Validation finished. No errors found!")
 
     @staticmethod
     def _get_movie_id(movie: bs4.element.Tag) -> int:

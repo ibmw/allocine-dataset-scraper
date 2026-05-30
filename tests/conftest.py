@@ -26,9 +26,7 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     """Configure custom markers."""
-    config.addinivalue_line(
-        "markers", "e2e: mark test as a real end-to-end integration test that hits Allocine.fr"
-    )
+    config.addinivalue_line("markers", "e2e: mark test as a real end-to-end integration test that hits Allocine.fr")
 
 
 def pytest_collection_modifyitems(config, items):

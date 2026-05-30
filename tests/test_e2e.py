@@ -5,8 +5,6 @@ HTML parsing structure, and file-writing modules integrate and work perfectly
 against the current live site design.
 """
 
-from pathlib import Path
-
 import pandas as pd
 import pytest
 
@@ -36,7 +34,7 @@ def test_scraping_movies_e2e(tmp_path):
     )
 
     scraper = AllocineScraper(config)
-    
+
     # Run the full scraping process unmocked
     scraper.scraping_movies()
 
