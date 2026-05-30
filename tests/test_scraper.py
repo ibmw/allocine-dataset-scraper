@@ -804,8 +804,8 @@ def test_scraper_retry_boundary_cases(tmp_path, monkeypatch):
     # 3. retry_failed_movies when df_report is empty (covers 428-430)
     report_path = config.full_quality_report_path
     pd.DataFrame(
-        columns=["movie_id", "movie_title", "error_type", "field", "value", "reason", "retry_count", "timestamp"]
-    ).to_csv(report_path, index=False)  # type: ignore
+        data={c: [] for c in ["movie_id", "movie_title", "error_type", "field", "value", "reason", "retry_count", "timestamp"]}
+    ).to_csv(report_path, index=False)
     scraper2.retry_failed_movies()
 
     # 4. retry_failed_movies when df_report has only movies that reached max retries (covers 431-434)
@@ -890,7 +890,7 @@ def test_validate_scraped_data(tmp_path, monkeypatch):
     # Should complete without error
 
     # Scenario 2b: File has columns but no rows (empty DataFrame success)
-    pd.DataFrame(columns=["id", "title"]).to_csv(csv_file, index=False)
+    pd.DataFrame(data={"id": [], "title": []}).to_csv(csv_file, index=False)
     scraper_empty_rows = AllocineScraper(config_missing)
     scraper_empty_rows.validate_scraped_data()
 
