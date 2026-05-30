@@ -181,3 +181,38 @@ def test_run_output_file_permissions(tmp_path):
         ],
     )
     assert result.exit_code != 0
+
+
+def test_run_with_retry_options(tmp_path, monkeypatch):
+    """Test CLI execution with new validation and retry options."""
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+
+    options_asserted = False
+
+    def mock_scraping_movies(self):
+        nonlocal options_asserted
+        assert self.config.retry_errors is True
+        assert self.config.auto_retry is True
+        assert self.config.max_retries == 5
+        options_asserted = True
+
+    monkeypatch.setattr(
+        "allocine_dataset_scraper.scraper.AllocineScraper.scraping_movies",
+        mock_scraping_movies,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "--output_dir",
+            str(path_dir),
+            "--retry-errors",
+            "--auto-retry",
+            "--max-retries",
+            "5",
+        ],
+    )
+    assert result.exit_code == 0
+    assert options_asserted is True

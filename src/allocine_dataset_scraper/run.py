@@ -58,6 +58,27 @@ from allocine_dataset_scraper.scraper import AllocineScraper
     help="Append result to the output csv file",
     show_default=True,
 )
+@click.option(
+    "--retry-errors",
+    is_flag=True,
+    default=False,
+    help="Retry scraping failed/corrupted movies logged in data quality report",
+    show_default=True,
+)
+@click.option(
+    "--auto-retry",
+    is_flag=True,
+    default=False,
+    help="Automatically retry staged errors at the end of the current run",
+    show_default=True,
+)
+@click.option(
+    "--max-retries",
+    default=3,
+    type=int,
+    help="Max retry attempts for corrupted/failed movies",
+    show_default=True,
+)
 def cli(**kwargs) -> None:
     """Run the Allocine movie scraper with specified parameters.
 

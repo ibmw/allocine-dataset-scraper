@@ -542,3 +542,281 @@ def test_parse_movie_generic_exception(response_movie, monkeypatch):
     scraper._parse_movie(response_movie)
     assert len(scraper.df) == 1
     assert scraper.df.iloc[0]["id"] is None
+
+
+def test_number_of_spec_rating_regex_fix():
+    """Test that spectator rating count handles spaces, non-breaking spaces, and extra text (e.g. dont critiques) correctly."""
+    from bs4 import BeautifulSoup
+
+    # Test case 1: normal number with space thousands separator
+    html = '<div class="rating-item">Spectateurs <span class="stareval-review"> 25 877 notes dont 1 686 critiques</span></div>'
+    soup = BeautifulSoup(html, "html.parser")
+    val = AllocineScraper._get_movie_number_of_spec_rating(soup)
+    assert val == 25877.0
+
+    # Test case 2: normal number with comma
+    html = '<div class="rating-item">Spectateurs <span class="stareval-review"> 3015 notes, 301 critiques</span></div>'
+    soup = BeautifulSoup(html, "html.parser")
+    val = AllocineScraper._get_movie_number_of_spec_rating(soup)
+    assert val == 3015.0
+
+    # Test case 3: single note
+    html = '<div class="rating-item">Spectateurs <span class="stareval-review"> 1 note</span></div>'
+    soup = BeautifulSoup(html, "html.parser")
+    val = AllocineScraper._get_movie_number_of_spec_rating(soup)
+    assert val == 1.0
+
+
+def test_movie_data_validation():
+    """Test validation layer on clean and corrupt data."""
+    from allocine_dataset_scraper.validation import validate_movie
+
+    # Clean data
+    clean_movie = {
+        "id": 12345,
+        "title": "Inception",
+        "release_date": pd.to_datetime("2010-07-16"),
+        "duration": 148,
+        "genres": "Sci-Fi",
+        "directors": "Christopher Nolan",
+        "actors": "Leonardo DiCaprio",
+        "nationality": "USA",
+        "press_rating": 4.5,
+        "number_of_press_rating": 45.0,
+        "spec_rating": 4.7,
+        "number_of_spec_rating": 12000.0,
+        "summary": "A thief steals corporate secrets through the use of dream-sharing technology.",
+    }
+    errors = validate_movie(clean_movie)
+    assert len(errors) == 0
+
+    # Corrupted data (absurd spec rating, too long duration, etc.)
+    corrupt_movie = {
+        "id": -10,  # invalid id
+        "title": "",  # too short
+        "release_date": pd.to_datetime("1800-01-01"),  # too old
+        "duration": 800,  # too long
+        "genres": "Sci-Fi",
+        "directors": "Christopher Nolan",
+        "actors": "Leonardo DiCaprio",
+        "nationality": "USA",
+        "press_rating": 6.0,  # invalid rating
+        "number_of_press_rating": 1500.0,  # too high
+        "spec_rating": -1.0,  # invalid rating
+        "number_of_spec_rating": 950572538.0,  # absurd Pulp Fiction-like rating count!
+        "summary": "Short synopsis.",
+    }
+    errors = validate_movie(corrupt_movie)
+    assert len(errors) > 0
+    fields_with_errors = [e["field"] for e in errors]
+    assert "id" in fields_with_errors
+    assert "title" in fields_with_errors
+    assert "release_date" in fields_with_errors
+    assert "duration" in fields_with_errors
+    assert "press_rating" in fields_with_errors
+    assert "number_of_press_rating" in fields_with_errors
+    assert "spec_rating" in fields_with_errors
+    assert "number_of_spec_rating" in fields_with_errors
+
+
+def test_quality_report_logging_and_retry(tmp_path, response_movie):
+    """Test validation failure stages SCRAPE_FAILED and BAD_DATA and verifies retry logic and count increments."""
+    from requests import Response
+    from allocine_dataset_scraper.utils import read_file
+
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+
+    config = ScraperConfig(
+        output_dir=Path(path_dir), quality_report_csv_name="custom_quality_report.csv", auto_retry=False, max_retries=2
+    )
+    scraper = AllocineScraper(config)
+
+    def response_corrupted_movie():
+        txt = read_file(str(Path(__file__).parent / "data/movie.txt"))
+        txt = txt.replace(" 3015 notes", " 9999999 notes")
+        resp = Response()
+        resp.status_code = 200
+        resp._content = str.encode(txt)
+        return resp
+
+    scraper._get_movie = lambda url: response_corrupted_movie()
+
+    # 1. Test BAD_DATA: Parse a movie that has corrupted data (e.g. mock a highly corrupted rating count)
+    response_movie._content = response_movie._content.replace(b" 3015 notes", b" 9999999 notes")
+    scraper._parse_movie(response_movie)
+
+    # Verify staged errors are populated
+    assert len(scraper.staged_errors) > 0
+    assert scraper.staged_errors[0]["error_type"] == "BAD_DATA"
+    assert scraper.staged_errors[0]["field"] == "number_of_spec_rating"
+    assert scraper.staged_errors[0]["movie_id"] == 275220
+
+    # Write errors to CSV
+    scraper._write_staged_errors()
+    report_path = config.full_quality_report_path
+    assert report_path.exists()
+
+    # Verify CSV content
+    df_report = pd.read_csv(report_path)
+    assert len(df_report) == 1
+    assert df_report.iloc[0]["error_type"] == "BAD_DATA"
+    assert df_report.iloc[0]["retry_count"] == 0
+
+    # 2. Test retry failure: Retry it, but it fails again! (Mock _get_movie to return same bad page)
+    scraper.retry_failed_movies()
+    df_report2 = pd.read_csv(report_path)
+    assert len(df_report2) == 1
+    assert df_report2.iloc[0]["retry_count"] == 1
+
+    # Retry it again (hits limit of max_retries = 2)
+    scraper.retry_failed_movies()
+    df_report3 = pd.read_csv(report_path)
+    assert len(df_report3) == 1
+    assert df_report3.iloc[0]["retry_count"] == 2
+
+    # Attempt to retry again, should not run because retry_count >= max_retries
+    scraper.retry_failed_movies()
+    # It remains 2, not incremented further
+    df_report4 = pd.read_csv(report_path)
+    assert df_report4.iloc[0]["retry_count"] == 2
+
+    # 3. Test retry success: Update the response to be clean, reset retry_count on a new mock, and run retry!
+    df_report_reset = pd.read_csv(report_path)
+    df_report_reset.loc[0, "retry_count"] = 0
+    df_report_reset.to_csv(report_path, index=False)
+
+    def response_unique_clean_movie():
+        txt = read_file(str(Path(__file__).parent / "data/movie.txt"))
+        resp = Response()
+        resp.status_code = 200
+        resp._content = str.encode(txt)
+        return resp
+
+    # Patch scraper _get_movie
+    scraper._get_movie = lambda url: response_unique_clean_movie()
+
+    scraper.retry_failed_movies()
+
+    # Verify quality report is cleared of this movie
+    df_report_success = pd.read_csv(report_path)
+    assert len(df_report_success) == 0
+
+    # Verify that the corrected movie data exists in the main CSV!
+    df_movies = pd.read_csv(config.full_output_path)
+    assert len(df_movies) == 1
+    assert df_movies.iloc[0]["number_of_spec_rating"] == 3015.0
+
+
+def test_auto_retry_integration(tmp_path, monkeypatch):
+    """Test that auto_retry logic automatically executes at the end of scraping."""
+    from allocine_dataset_scraper.utils import read_file
+
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+
+    config = ScraperConfig(
+        output_dir=Path(path_dir),
+        quality_report_csv_name="auto_retry_report.csv",
+        number_of_pages=1,
+        auto_retry=True,
+        max_retries=2,
+    )
+    scraper = AllocineScraper(config)
+
+    # Mock movie fetching to raise an exception on first try, but succeed on retry!
+    call_count = 0
+
+    def mock_get_movie(url):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise ConnectionError("Temporary request failure")
+        else:
+            from requests import Response
+
+            txt = read_file(str(Path(__file__).parent / "data/movie.txt"))
+            resp = Response()
+            resp.status_code = 200
+            resp._content = str.encode(txt)
+            return resp
+
+    monkeypatch.setattr(scraper, "_get_movie", mock_get_movie)
+
+    # Execute scrape
+    scraper.scraping_movies()
+
+    # Check that it fetched on retry and succeeded, clearing the error log!
+    report_path = config.full_quality_report_path
+    if report_path.exists():
+        df_report = pd.read_csv(report_path)
+        assert len(df_report) == 0
+
+    # Verify the movie was successfully merged into the final database
+    assert len(scraper.df) == 1
+    assert scraper.df.iloc[0]["id"] == 275220
+
+
+def test_scraper_retry_boundary_cases(tmp_path, monkeypatch):
+    """Test various boundary cases and error branches in retry logic to maximize coverage."""
+
+    path_dir = tmp_path / "data"
+    path_dir.mkdir()
+
+    # 1. retry_errors is True inside scraping_movies (covers 299-300)
+    config_retry = ScraperConfig(
+        output_dir=Path(path_dir), quality_report_csv_name="boundary_quality_report.csv", retry_errors=True
+    )
+    scraper = AllocineScraper(config_retry)
+    monkeypatch.setattr(scraper, "retry_failed_movies", lambda: setattr(scraper, "_retry_called", True))
+    scraper.scraping_movies()
+    assert getattr(scraper, "_retry_called", False) is True
+
+    # 2. retry_failed_movies when report path does not exist (covers 415-416)
+    config = ScraperConfig(
+        output_dir=Path(path_dir), quality_report_csv_name="nonexistent_report.csv", retry_errors=False
+    )
+    scraper2 = AllocineScraper(config)
+    scraper2.retry_failed_movies()
+
+    # 3. retry_failed_movies when df_report is empty (covers 428-430)
+    report_path = config.full_quality_report_path
+    pd.DataFrame(columns=["movie_id", "movie_title", "error_type", "field", "value", "reason", "retry_count", "timestamp"]).to_csv(report_path, index=False)  # type: ignore
+    scraper2.retry_failed_movies()
+
+    # 4. retry_failed_movies when df_report has only movies that reached max retries (covers 431-434)
+    # Also tests _write_staged_errors when existing report is not empty (covers 391-394 and 400-408)
+    scraper2.staged_errors = [
+        {
+            "movie_id": 99999,
+            "movie_title": "Max Retried Movie",
+            "error_type": "BAD_DATA",
+            "field": "duration",
+            "value": "900",
+            "reason": "too long",
+            "retry_count": 3,
+            "timestamp": "2026-05-30",
+        }
+    ]
+    scraper2._write_staged_errors()
+    scraper2.retry_failed_movies()
+
+    # 5. retry_failed_movies when it raises an exception (covers 500-528)
+    df = pd.read_csv(report_path)
+    df.loc[0, "retry_count"] = 0
+    df.to_csv(report_path, index=False)
+
+    monkeypatch.setattr(scraper2, "_get_movie", lambda url: (_ for _ in ()).throw(ValueError("Critical retry error")))
+    scraper2.retry_failed_movies()
+
+    df_after_except = pd.read_csv(report_path)
+    page_row = df_after_except[df_after_except["field"] == "page"]
+    assert len(page_row) == 1
+    assert page_row.iloc[0]["retry_count"] == 1
+
+    # 6. listing page fetch failure inside scraping_movies (covers 315-317)
+    scraper3 = AllocineScraper(ScraperConfig(output_dir=Path(path_dir), number_of_pages=1))
+    monkeypatch.setattr(
+        scraper3, "_get_page", lambda page: (_ for _ in ()).throw(ConnectionError("Listing fetch fail"))
+    )
+    scraper3.scraping_movies()

@@ -23,7 +23,7 @@ import time
 import unicodedata
 from pathlib import Path
 from random import randrange
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import bs4
 import dateparser
@@ -34,6 +34,7 @@ from loguru import logger
 from tqdm.auto import tqdm
 
 from allocine_dataset_scraper.config import ScraperConfig, Settings, settings
+from allocine_dataset_scraper.validation import validate_movie
 
 logger.remove()
 logger.add("scraper.log", rotation="100 MB")
@@ -91,6 +92,7 @@ class AllocineScraper:
         self.config = config
         self.settings = settings
         self.exclude_ids: List[int] = []
+        self.staged_errors: List[Dict[str, Any]] = []
 
         logger.info("Initializing Allocine Scraper...")
         logger.info(f"- Number of pages to scrap: {self.config.number_of_pages}")
@@ -226,6 +228,25 @@ class AllocineScraper:
 
         if parser_movie is None:
             logger.error("Could not find 'content-layout' main element in movie page. Skipping.")
+            m_id = 0
+            if page.url:
+                url_part = page.url.split("=")[-1].split(".")[0]
+                try:
+                    m_id = int(re.sub(r"\D", "", url_part))
+                except Exception:
+                    pass
+            self.staged_errors.append(
+                {
+                    "movie_id": m_id,
+                    "movie_title": f"Unknown (URL: {page.url})",
+                    "error_type": "SCRAPE_FAILED",
+                    "field": "page",
+                    "value": "None",
+                    "reason": "Could not find 'content-layout' main element",
+                    "retry_count": 0,
+                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+            )
             return
 
         self._create_directory_if_not_exist(self.config.output_dir)
@@ -241,11 +262,31 @@ class AllocineScraper:
 
             movie_datas[info] = [scraped_info]
 
+        # Validate movie data
+        flat_data = {k: v[0] for k, v in movie_datas.items()}
+        validation_errors = validate_movie(flat_data)
+        if validation_errors:
+            logger.warning(f"Movie {flat_data.get('id')} ({flat_data.get('title')}) failed data validation:")
+            for err in validation_errors:
+                logger.warning(f"  - {err['field']}: {err['reason']} (value: {err['value']})")
+                self.staged_errors.append(
+                    {
+                        "movie_id": flat_data.get("id", 0),
+                        "movie_title": flat_data.get("title", "Unknown"),
+                        "error_type": "BAD_DATA",
+                        "field": err["field"],
+                        "value": str(err["value"]),
+                        "reason": err["reason"],
+                        "retry_count": 0,
+                        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    }
+                )
+
         self.df = (
             pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
             if not self.df.empty
             else pd.DataFrame(movie_datas, columns=self.movie_infos)  # type: ignore
-        ).drop_duplicates(subset=["id"])
+        ).drop_duplicates(subset=["id"], keep="last")
 
         self.df.to_csv(f"{self.config.full_output_path}", index=False)
 
@@ -258,6 +299,12 @@ class AllocineScraper:
         - Fetching and parsing individual movie pages
         - Saving results to CSV
         """
+        if self.config.retry_errors:
+            self.retry_failed_movies()
+            return
+
+        # Ensure directory is created or writeable before wasting requests
+        self._create_directory_if_not_exist(self.config.output_dir)
 
         logger.info("Starting scraping movies from Allocine...")
 
@@ -266,8 +313,12 @@ class AllocineScraper:
         ):
             logger.info(f"Fetching Page {number}/{self.config.from_page + self.config.number_of_pages}")
             time.sleep(self._randomize_waiting_time())
-            res_page = self._get_page(number)
-            urls_to_parse = self._parse_page(res_page)
+            try:
+                res_page = self._get_page(number)
+                urls_to_parse = self._parse_page(res_page)
+            except Exception as e:
+                logger.error(f"Failed to fetch or parse listing page {number}: {e}")
+                continue
 
             for url in tqdm(
                 urls_to_parse,
@@ -275,10 +326,30 @@ class AllocineScraper:
                 leave=(number == (self.config.from_page + self.config.number_of_pages - 1)),
             ):
                 logger.info(f"Fetching Movie {url}")
-                res_movie = self._get_movie(url)
+                url_id = int(url.split("=")[-1].split(".")[0])
+                try:
+                    res_movie = self._get_movie(url)
+                except Exception as e:
+                    logger.error(f"Failed to fetch movie {url}: {e}")
+                    self.staged_errors.append(
+                        {
+                            "movie_id": url_id,
+                            "movie_title": f"Unknown (URL: {url})",
+                            "error_type": "SCRAPE_FAILED",
+                            "field": "page",
+                            "value": "None",
+                            "reason": f"Request/fetch failed: {str(e)}",
+                            "retry_count": 0,
+                            "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        }
+                    )
+                    continue
+
                 self._parse_movie(res_movie)
 
-                self.exclude_ids.append(int(url.split("=")[-1].split(".")[0]))
+                if url_id not in self.exclude_ids:
+                    self.exclude_ids.append(url_id)
+
                 sleep_timer = self._randomize_waiting_time()
                 logger.info(
                     f"""Done Fetching {url}.
@@ -293,8 +364,180 @@ class AllocineScraper:
             )
             time.sleep(sleep_timer)
 
+        # Write all staged errors to data_quality_report.csv
+        if self.staged_errors:
+            self._write_staged_errors()
+
+        # Automatic end-of-run retry
+        if self.config.auto_retry:
+            report_path = self.config.full_quality_report_path
+            if report_path.exists():
+                try:
+                    df_report = pd.read_csv(report_path)
+                    fresh_failed_series = df_report[df_report["retry_count"] == 0]["movie_id"]  # type: ignore
+                    fresh_failed_ids: List[int] = sorted(list({int(x) for x in fresh_failed_series if pd.notna(x)}))
+                    if fresh_failed_ids:
+                        logger.info(
+                            f"Auto-retry enabled: Retrying {len(fresh_failed_ids)} movie(s) that failed in this run..."
+                        )
+                        self.retry_failed_movies(fresh_failed_ids)
+                except Exception as e:
+                    logger.error(f"Failed to check for auto-retry movies: {e}")
+
         logger.info("Done scraping Allocine.")
         logger.info(f"Results are stored in {self.config.output_csv_name}.")
+
+    def _write_staged_errors(self) -> None:
+        """Write self.staged_errors to the quality report CSV, preserving existing retry_counts."""
+        if not self.staged_errors:
+            return
+
+        self._create_directory_if_not_exist(self.config.output_dir)
+        report_path = self.config.full_quality_report_path
+
+        existing_report = pd.DataFrame()
+        if report_path.exists():
+            try:
+                existing_report = pd.read_csv(report_path)
+            except Exception as e:
+                logger.warning(f"Failed to read existing quality report at {report_path}: {e}")
+
+        new_errors_df = pd.DataFrame(self.staged_errors)
+
+        if not existing_report.empty:
+            for idx, row in new_errors_df.iterrows():
+                match = existing_report[
+                    (existing_report["movie_id"] == row["movie_id"]) & (existing_report["field"] == row["field"])
+                ]
+                if not match.empty:
+                    new_errors_df.at[idx, "retry_count"] = int(match.iloc[0]["retry_count"])
+
+            combined = pd.concat([existing_report, new_errors_df], ignore_index=True)
+            final_report = combined.drop_duplicates(subset=["movie_id", "field"], keep="last")
+        else:
+            final_report = new_errors_df.drop_duplicates(subset=["movie_id", "field"], keep="last")
+
+        try:
+            final_report.to_csv(report_path, index=False)
+            logger.info(f"Data quality report updated at: <{report_path}>")
+        except Exception as e:
+            logger.error(f"Failed to write data quality report to {report_path}: {e}")
+
+        self.staged_errors = []
+
+    def retry_failed_movies(self, movie_ids: Optional[List[int]] = None) -> None:
+        """Retry scraping failed or corrupted movies.
+
+        Args:
+            movie_ids: Optional list of movie IDs to retry.
+                       If None, loads them from the quality report CSV.
+        """
+        report_path = self.config.full_quality_report_path
+
+        if movie_ids is None:
+            if not report_path.exists():
+                logger.info(f"No quality report found at {report_path}. Nothing to retry.")
+                return
+            try:
+                df_report = pd.read_csv(report_path)
+                if df_report.empty:
+                    logger.info("Quality report is empty. Nothing to retry.")
+                    return
+                df_to_retry = df_report[df_report["retry_count"] < self.config.max_retries]
+                if df_to_retry.empty:
+                    logger.info(
+                        f"All reported movies have reached the maximum retry limit of {self.config.max_retries}."
+                    )
+                    return
+                movie_ids = df_to_retry["movie_id"].unique().tolist()  # type: ignore
+            except Exception as e:
+                logger.error(f"Failed to load movie IDs from quality report: {e}")
+                return
+
+        if not movie_ids:
+            logger.info("No movie IDs to retry.")
+            return
+
+        logger.info(f"Starting retry phase for {len(movie_ids)} movie(s)...")
+
+        for m_id in tqdm(movie_ids, desc="Retrying Movies"):
+            movie_url = f"/film/fichefilm_gen_cfilm={m_id}.html"
+            logger.info(f"Retrying Movie ID: {m_id} via URL: {movie_url}")
+
+            time.sleep(self._randomize_waiting_time())
+
+            try:
+                res_movie = self._get_movie(movie_url)
+
+                self._parse_movie(res_movie)
+
+                staged_for_this_movie = [err for err in self.staged_errors if err["movie_id"] == m_id]
+
+                if not staged_for_this_movie:
+                    logger.info(f"Successfully corrected Movie ID: {m_id}!")
+                    if report_path.exists():
+                        try:
+                            df_report = pd.read_csv(report_path)
+                            df_report = df_report[df_report["movie_id"] != m_id]
+                            df_report.to_csv(report_path, index=False)
+                        except Exception as e:
+                            logger.error(f"Failed to remove resolved movie {m_id} from quality report: {e}")
+                    if m_id not in self.exclude_ids:
+                        self.exclude_ids.append(m_id)
+                else:
+                    logger.warning(f"Retry failed for Movie ID: {m_id}. Errors persist.")
+                    if report_path.exists():
+                        try:
+                            df_report = pd.read_csv(report_path)
+                            for err in staged_for_this_movie:
+                                match = df_report[
+                                    (df_report["movie_id"] == m_id) & (df_report["field"] == err["field"])
+                                ]
+                                existing_count = int(match.iloc[0]["retry_count"]) if not match.empty else 0
+                                err["retry_count"] = existing_count + 1
+
+                            new_err_df = pd.DataFrame(staged_for_this_movie)
+                            combined = pd.concat([df_report, new_err_df], ignore_index=True)
+                            final_report = combined.drop_duplicates(subset=["movie_id", "field"], keep="last")
+                            final_report.to_csv(report_path, index=False)
+                        except Exception as e:
+                            logger.error(f"Failed to update retry counts in quality report: {e}")
+                    else:
+                        for err in staged_for_this_movie:
+                            err["retry_count"] = 1
+                        self._write_staged_errors()
+
+                self.staged_errors = [err for err in self.staged_errors if err["movie_id"] != m_id]
+
+            except Exception as e:
+                logger.error(f"Exception during retry of Movie ID {m_id}: {e}")
+                scrape_err = {
+                    "movie_id": m_id,
+                    "movie_title": f"Unknown (ID: {m_id})",
+                    "error_type": "SCRAPE_FAILED",
+                    "field": "page",
+                    "value": "None",
+                    "reason": f"Retry failed: {str(e)}",
+                    "retry_count": 0,
+                    "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                }
+                if report_path.exists():
+                    try:
+                        df_report = pd.read_csv(report_path)
+                        match = df_report[(df_report["movie_id"] == m_id) & (df_report["field"] == "page")]
+                        existing_count = int(match.iloc[0]["retry_count"]) if not match.empty else 0
+                        scrape_err["retry_count"] = existing_count + 1
+
+                        new_err_df = pd.DataFrame([scrape_err])
+                        combined = pd.concat([df_report, new_err_df], ignore_index=True)
+                        final_report = combined.drop_duplicates(subset=["movie_id", "field"], keep="last")
+                        final_report.to_csv(report_path, index=False)
+                    except Exception as ex:
+                        logger.error(f"Failed to log retry page failure: {ex}")
+                else:
+                    scrape_err["retry_count"] = 1
+                    self.staged_errors.append(scrape_err)
+                    self._write_staged_errors()
 
     @staticmethod
     def _get_movie_id(movie: bs4.element.Tag) -> int:
@@ -469,13 +712,12 @@ class AllocineScraper:
 
         for ratings in movie_ratings:
             if "Presse" in ratings.text:
-                return float(
-                    re.sub(
-                        r"\D",
-                        "",
-                        ratings.find("span", {"class": "stareval-review"}).text,
-                    )
-                )
+                review_span = ratings.find("span", {"class": "stareval-review"})
+                if review_span:
+                    text = review_span.text
+                    match = re.search(r"^\s*([\d\s\xa0\u202f]+)", text)
+                    if match:
+                        return float(re.sub(r"\D", "", match.group(1)))
         return None
 
     @staticmethod
@@ -510,13 +752,12 @@ class AllocineScraper:
 
         for ratings in movie_ratings:
             if "Spectateurs" in ratings.text:
-                return float(
-                    re.sub(
-                        r"\D",
-                        "",
-                        (ratings.find("span", {"class": "stareval-review"}).text.split(",")[0]),
-                    )
-                )
+                review_span = ratings.find("span", {"class": "stareval-review"})
+                if review_span:
+                    text = review_span.text
+                    match = re.search(r"^\s*([\d\s\xa0\u202f]+)", text)
+                    if match:
+                        return float(re.sub(r"\D", "", match.group(1)))
         return None
 
     @staticmethod

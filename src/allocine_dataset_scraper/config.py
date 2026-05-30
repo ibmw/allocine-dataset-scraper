@@ -27,6 +27,16 @@ class ScraperConfig(BaseModel):
         default=(2, 10), description="Min and max seconds to pause between requests"
     )
     append_result: bool = Field(default=False, description="Whether to append to existing CSV file")
+    quality_report_csv_name: str = Field(
+        default="data_quality_report.csv", pattern=r".*\.csv$", description="Quality report CSV filename"
+    )
+    retry_errors: bool = Field(
+        default=False, description="Whether to retry scraping specifically on movies logged with errors"
+    )
+    auto_retry: bool = Field(
+        default=False, description="Whether to automatically retry failures at the end of a regular run"
+    )
+    max_retries: int = Field(default=3, gt=0, description="Maximum number of retry attempts for a corrupted movie")
 
     @field_validator("pause_scraping")
     def validate_pause_range(cls, v: Tuple[int, int]) -> Tuple[int, int]:
@@ -39,6 +49,11 @@ class ScraperConfig(BaseModel):
     def full_output_path(self) -> Path:
         """Get the full path to the output CSV file."""
         return self.output_dir / self.output_csv_name
+
+    @property
+    def full_quality_report_path(self) -> Path:
+        """Get the full path to the data quality CSV file."""
+        return self.output_dir / self.quality_report_csv_name
 
 
 class Settings(BaseSettings):

@@ -20,10 +20,11 @@ graph TD
 
 ### Module Breakdown:
 - [src/allocine_dataset_scraper/config.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/src/allocine_dataset_scraper/config.py): Configuration management. 
-  - `ScraperConfig`: Pydantic model for CLI/API execution settings (e.g., number of pages, directories, wait times).
+  - `ScraperConfig`: Pydantic model for CLI/API execution settings (e.g., number of pages, directories, wait times, error retries).
   - `Settings`: Pydantic `BaseSettings` for global scraper options (e.g., Base URL, User-Agent, request timeouts) loaded from environment variables (prefixed with `ALLOCINE_`) or `.env` files.
 - [src/allocine_dataset_scraper/scraper.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/src/allocine_dataset_scraper/scraper.py): Core scraping logic. Contains the `AllocineScraper` class, pagination loop, movie page extraction methods, rate limiting, and output CSV writing.
-- [src/allocine_dataset_scraper/run.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/src/allocine_dataset_scraper/run.py): CLI interface built with `click`. Defines options corresponding to `ScraperConfig` fields and invokes the scraper.
+- [src/allocine_dataset_scraper/validation.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/src/allocine_dataset_scraper/validation.py): Data validation layer using Pydantic. Defines constraints and boundary checks for movie metadata to flag corrupted entries.
+- [src/allocine_dataset_scraper/run.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/src/allocine_dataset_scraper/run.py): CLI interface built with `click`. Defines options corresponding to `ScraperConfig` fields (including validation, logging, and stand-alone error retries) and invokes the scraper.
 - [src/allocine_dataset_scraper/utils.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/src/allocine_dataset_scraper/utils.py): Generic utility functions (e.g., UTF-8 file readers).
 
 ---
@@ -50,6 +51,13 @@ Before committing any changes, ensure all verification tools pass:
 
 > [!IMPORTANT]
 > The target test coverage for the repository is **above 90%**. When modifying parsing or configuration code, you must add corresponding unit tests in `tests/test_scraper.py` or `tests/test_run.py`.
+
+### ⏱️ Test Suite Performance Guard
+To prevent the unit tests from taking a long time during retry or scraping loop tests, **`time.sleep` is globally mocked to a no-op** in [tests/conftest.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/tests/conftest.py):
+```python
+monkeypatch.setattr("time.sleep", lambda *args, **kwargs: None)
+```
+This ensures the entire 50+ test suite executes in under 5 seconds instead of waiting on physical delays. Avoid introducing unmocked sleeps, long blocking requests, or actual network calls in unit tests.
 
 ---
 
@@ -128,6 +136,16 @@ for info in self.movie_infos:
     except Exception as ex:
         logger.error(f"<id:{movie_datas.get('id')}, info:{info}>: {ex}")
         scraped_info = None
+
+### 4. Data Quality Validation & Standsalone Retries
+To protect the dataset from corrupted metadata, each scraped movie is validated against a Pydantic schema (`MovieValidationModel`).
+- **Failure Categorization**:
+  - `SCRAPE_FAILED`: Complete failure to fetch the page or parse its layout (stages a page error).
+  - `BAD_DATA`: Successfully scraped but field values fall outside boundaries (e.g. `number_of_spec_rating > 500000`).
+- **Quality Logging**: Errors are logged to `data_quality_report.csv` indicating `movie_id`, `movie_title`, `error_type`, `field`, `value`, `reason`, `retry_count`, and `timestamp`.
+- **End-of-Run Retry (`--auto-retry`)**: If auto-retry is enabled, the scraper automatically attempts a second retry pass specifically on movies that failed during the current run, deferred until pagination completes.
+- **Stand-alone Error Correction (`--retry-errors`)**: Enables retrying errors from past runs. Reads `data_quality_report.csv`, fetches pages directly, validates them, merges successfully corrected rows into the main CSV (using `keep="last"`), and purges them from the report.
+- **Retry Ceilings**: A movie increments its `retry_count` in the quality report CSV upon repeated failures. Once `retry_count >= max_retries` (default: 3), it is bypassed to prevent redundant calls.
 ```
 
 ---

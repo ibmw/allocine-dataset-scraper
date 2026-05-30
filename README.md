@@ -35,7 +35,7 @@ The scraper collects the following information for each movie:
 | nationality | Movie nationality |
 | press_rating | Average press rating (0-5 stars) |
 | number_of_press_rating | Number of press ratings |
-| user_rating | User ratings (0-5 stars) |
+| spec_rating | User ratings (0-5 stars) |
 | number_of_spec_rating | Number of user ratings |
 | summary | Movie synopsis (in French) |
 
@@ -81,6 +81,9 @@ fetch-allocine --help
 | --output_csv_name | TEXT | Output filename | allocine_movies.csv |
 | --pause_scraping | INTEGER INTEGER | Range for pause duration (min max) | 2 10 |
 | --append_result | FLAG | Append to existing CSV | False |
+| --retry-errors | FLAG | Stand-alone retry phase to correct logged errors | False |
+| --auto-retry | FLAG | Automatically retry errors at the end of the run | False |
+| --max-retries | INTEGER | Max retry count for corrupted/failed movies | 3 |
 | --help | FLAG | Show help message and exit | - |
 
 **Python API Usage**

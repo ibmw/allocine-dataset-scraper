@@ -42,6 +42,7 @@ def patch_tests(monkeypatch):
         return resp
 
     monkeypatch.delattr("requests.sessions.Session.request")
+    monkeypatch.setattr("time.sleep", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         "allocine_dataset_scraper.scraper.AllocineScraper._get_page",
         response_page_same_movie_id,
