@@ -44,20 +44,26 @@ Before committing any changes, ensure all verification tools pass:
 
 | Tool | Purpose | Command |
 | --- | --- | --- |
-| **pytest** | Run all unit & integration tests with coverage | `uv run pytest --cov` |
+| **pytest** | Run all fast mocked unit & integration tests (~5s) | `uv run pytest` |
+| **pytest (E2E)** | Run live unmocked E2E tests & verify 100% coverage (~35-45s) | `uv run pytest --run-e2e --cov=allocine_dataset_scraper --cov-report=term-missing` |
 | **ruff check** | Code linting and style enforcement | `uv run ruff check .` |
 | **ruff format** | Check code formatting | `uv run ruff format .` |
 | **pyright** | Static type checking | `uv run pyright` |
 
 > [!IMPORTANT]
-> The target test coverage for the repository is **above 90%**. When modifying parsing or configuration code, you must add corresponding unit tests in `tests/test_scraper.py` or `tests/test_run.py`.
+> The target test coverage for the repository is **100% statement coverage**. When modifying parsing or configuration code, you must add corresponding unit tests in `tests/test_scraper.py` or `tests/test_run.py`.
 
-### ⏱️ Test Suite Performance Guard
-To prevent the unit tests from taking a long time during retry or scraping loop tests, **`time.sleep` is globally mocked to a no-op** in [tests/conftest.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/tests/conftest.py):
+### ⏱️ Test Suite Performance & E2E Integration Guard
+To prevent standard unit tests from taking a long time during retry or scraping loop tests, **`time.sleep` is globally mocked to a no-op** in [tests/conftest.py](file:///Users/oliviermaillot/Projects/Github/allocine-dataset-scraper/tests/conftest.py) by default:
 ```python
 monkeypatch.setattr("time.sleep", lambda *args, **kwargs: None)
 ```
-This ensures the entire 50+ test suite executes in under 5 seconds instead of waiting on physical delays. Avoid introducing unmocked sleeps, long blocking requests, or actual network calls in unit tests.
+This ensures standard local tests execute in under 5 seconds.
+
+#### E2E Mock Bypassing:
+For E2E integration tests marked with `@pytest.mark.e2e`, the `patch_tests` fixture dynamically detects the marker and **completely bypasses all monkeypatching**. This allows E2E tests to execute unmocked and test live HTTP calls and real timers against the Allocine website.
+* Standard fast run: `uv run pytest` (automatically skips `@pytest.mark.e2e` tests, ~5s)
+* Live integrated run: `uv run pytest --run-e2e` (enables live integration runs, ~35-45s)
 
 ---
 
@@ -146,6 +152,13 @@ To protect the dataset from corrupted metadata, each scraped movie is validated 
 - **End-of-Run Retry (`--auto-retry`)**: If auto-retry is enabled, the scraper automatically attempts a second retry pass specifically on movies that failed during the current run, deferred until pagination completes.
 - **Stand-alone Error Correction (`--retry-errors`)**: Enables retrying errors from past runs. Reads `data_quality_report.csv`, fetches pages directly, validates them, merges successfully corrected rows into the main CSV (using `keep="last"`), and purges them from the report.
 - **Retry Ceilings**: A movie increments its `retry_count` in the quality report CSV upon repeated failures. Once `retry_count >= max_retries` (default: 3), it is bypassed to prevent redundant calls.
+```
+
+### 5. URL Construction & Resolution
+To avoid broken links and 404 Errors, relative paths must always be resolved against base URLs using the standard `urllib.parse.urljoin` instead of simple string concatenation. Simple concatenation on structured base URLs (such as `http://www.allocine.fr/films/`) leads to double-slash paths (`/films//film/...`), which live servers reject.
+```python
+from urllib.parse import urljoin
+full_url = urljoin(self.settings.base_url, url)
 ```
 
 ---

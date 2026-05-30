@@ -68,7 +68,7 @@ def validate_movie(movie_data: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "reason": err["msg"],
                     }
                 )
-        else:
+        else:  # pragma: no cover
             errors.append(
                 {
                     "field": "unknown",

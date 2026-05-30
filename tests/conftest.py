@@ -14,16 +14,48 @@ from requests import Response
 from allocine_dataset_scraper.utils import read_file
 
 
+def pytest_addoption(parser):
+    """Register custom command line options."""
+    parser.addoption(
+        "--run-e2e",
+        action="store_true",
+        default=False,
+        help="run real end-to-end integration tests that hit the network",
+    )
+
+
+def pytest_configure(config):
+    """Configure custom markers."""
+    config.addinivalue_line(
+        "markers", "e2e: mark test as a real end-to-end integration test that hits Allocine.fr"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Modify collected tests to skip e2e tests unless --run-e2e flag is provided."""
+    if config.getoption("--run-e2e"):
+        # Option is set: do not skip E2E tests
+        return
+
+    skip_e2e = pytest.mark.skip(reason="need --run-e2e option to run live network tests")
+    for item in items:
+        if "e2e" in item.keywords:
+            item.add_marker(skip_e2e)
+
+
 @pytest.fixture(autouse=True)
-def patch_tests(monkeypatch):
-    """Patch Allocine scraper class for all tests.
+def patch_tests(monkeypatch, request):
+    """Patch Allocine scraper class for all tests except E2E.
 
     Automatically applied fixture that mocks network requests to avoid
     actual web scraping during tests.
 
     Args:
         monkeypatch: Pytest fixture for modifying objects
+        request: Pytest sub-request object
     """
+    if "e2e" in request.keywords:
+        return
 
     def response_page_same_movie_id(*arg):
         """Create mock response for movie listing page."""

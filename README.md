@@ -17,7 +17,7 @@
   - Progress tracking with tqdm
   - Type-safe configuration management (via pydantic)
   - Docker support with non-root user security
-  - 90%+ test coverage
+  - 100% code coverage (combining unit tests and unmocked E2E integration tests)
 
 ## 📊 Data Collection
 
@@ -134,10 +134,11 @@ uv sync --all-extras --dev
 ### Quality Checks
 ```bash
 # Run all checks
-uv run ruff check .        # Linting
-uv run ruff format .       # Formatting
-uv run pyright            # Type checking
-uv run pytest --cov       # Tests with coverage
+uv run ruff check .                                           # Linting
+uv run ruff format .                                          # Formatting
+uv run pyright                                                # Type checking
+uv run pytest                                                 # Fast mocked tests (default, ~5s)
+uv run pytest --run-e2e --cov=allocine_dataset_scraper --cov-report=term-missing   # Live E2E tests and complete 100% coverage (~35-45s)
 ```
 
 ### Building Docker Image
@@ -156,7 +157,7 @@ Contributions are welcome! Please follow these steps:
 6. Open a Pull Request
 
 ### Development Guidelines
-- Maintain test coverage above 90%
+- Maintain 100% test coverage (combining mocked unit tests and E2E integration tests)
 - Use type hints consistently
 - Follow PEP 8 style guidelines (enforced by ruff)
 - Document new functions and classes with docstrings

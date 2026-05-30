@@ -520,8 +520,21 @@ def test_parse_movie_invalid_html(response_movie):
     config = ScraperConfig()
     scraper = AllocineScraper(config)
     response_movie._content = b"<html><body>No movie content here</body></html>"
+    
+    # Test fallback URL parsing success
+    response_movie.url = "http://www.allocine.fr/film/fichefilm_gen_cfilm=12345.html"
     scraper._parse_movie(response_movie)
     assert len(scraper.df) == 0
+    assert len(scraper.staged_errors) == 1
+    assert scraper.staged_errors[0]["movie_id"] == 12345
+    
+    # Test fallback URL parsing failure (exception branch)
+    scraper.staged_errors = []
+    response_movie.url = "http://www.allocine.fr/no-id-here"
+    scraper._parse_movie(response_movie)
+    assert len(scraper.df) == 0
+    assert len(scraper.staged_errors) == 1
+    assert scraper.staged_errors[0]["movie_id"] == 0
 
 
 def test_parse_movie_generic_exception(response_movie, monkeypatch):
@@ -617,6 +630,14 @@ def test_movie_data_validation():
     assert "number_of_press_rating" in fields_with_errors
     assert "spec_rating" in fields_with_errors
     assert "number_of_spec_rating" in fields_with_errors
+
+    # Too far future date (more than 5 years in the future)
+    import datetime
+    future_movie = clean_movie.copy()
+    future_movie["release_date"] = pd.to_datetime(f"{datetime.datetime.now().year + 6}-01-01")
+    errors2 = validate_movie(future_movie)
+    assert len(errors2) > 0
+    assert any(e["field"] == "release_date" for e in errors2)
 
 
 def test_quality_report_logging_and_retry(tmp_path, response_movie):
@@ -786,6 +807,17 @@ def test_scraper_retry_boundary_cases(tmp_path, monkeypatch):
 
     # 4. retry_failed_movies when df_report has only movies that reached max retries (covers 431-434)
     # Also tests _write_staged_errors when existing report is not empty (covers 391-394 and 400-408)
+    existing_err = {
+        "movie_id": 99999,
+        "movie_title": "Max Retried Movie",
+        "error_type": "BAD_DATA",
+        "field": "duration",
+        "value": "900",
+        "reason": "too long",
+        "retry_count": 3,
+        "timestamp": "2026-05-30",
+    }
+    pd.DataFrame([existing_err]).to_csv(report_path, index=False)
     scraper2.staged_errors = [
         {
             "movie_id": 99999,
@@ -794,7 +826,7 @@ def test_scraper_retry_boundary_cases(tmp_path, monkeypatch):
             "field": "duration",
             "value": "900",
             "reason": "too long",
-            "retry_count": 3,
+            "retry_count": 0,
             "timestamp": "2026-05-30",
         }
     ]
@@ -820,3 +852,17 @@ def test_scraper_retry_boundary_cases(tmp_path, monkeypatch):
         scraper3, "_get_page", lambda page: (_ for _ in ()).throw(ConnectionError("Listing fetch fail"))
     )
     scraper3.scraping_movies()
+
+
+def test_scraper_empty_boundaries(tmp_path):
+    """Test early returns and empty inputs in scraper functions."""
+    config = ScraperConfig(output_dir=tmp_path / "data")
+    scraper = AllocineScraper(config)
+
+    # Test _write_staged_errors with empty self.staged_errors
+    scraper.staged_errors = []
+    scraper._write_staged_errors()
+    assert not config.full_quality_report_path.exists()
+
+    # Test retry_failed_movies with empty list
+    scraper.retry_failed_movies(movie_ids=[])
