@@ -133,7 +133,7 @@ uv sync --all-extras --dev
 # Run all checks
 uv run ruff check .        # Linting
 uv run ruff format .       # Formatting
-uv run mypy .             # Type checking
+uv run pyright            # Type checking
 uv run pytest --cov       # Tests with coverage
 ```
 

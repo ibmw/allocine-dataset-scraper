@@ -22,7 +22,7 @@ dependencies = [
 dev = [
     "pytest>=8.3.3",
     "ruff>=0.2.0",
-    "mypy>=1.10.1",
+    "pyright",
     "types-requests",
     "types-dateparser",
     "types-click",
@@ -39,5 +39,9 @@ fetch-allocine = "allocine_dataset_scraper.run:cli"
 [tool.pytest.ini_options]
 pythonpath = "src"
 
-[tool.mypy]
-ignore_missing_imports = true
+[tool.pyright]
+include = ["src", "tests"]
+reportMissingImports = true
+reportMissingTypeStubs = false
+pythonVersion = "3.12"
+pythonPlatform = "All"

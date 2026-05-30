@@ -6,7 +6,7 @@ exclude = [
     ".git-rewrite",
     ".hg",
     ".ipynb_checkpoints",
-    ".mypy_cache",
+    ".pyright",
     ".nox",
     ".pants.d",
     ".pyenv",

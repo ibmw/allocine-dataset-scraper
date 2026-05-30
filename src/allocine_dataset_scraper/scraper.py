@@ -76,7 +76,7 @@ class AllocineScraper:
         "summary",
     ]
 
-    df: pd.DataFrame = pd.DataFrame(columns=movie_infos)
+    df: pd.DataFrame = pd.DataFrame(columns=movie_infos)  # type: ignore
 
     def __init__(self, config: ScraperConfig, settings: Settings = settings) -> None:
         """Initialize the Allocine scraper.
@@ -90,7 +90,7 @@ class AllocineScraper:
         """
         self.config = config
         self.settings = settings
-        self.exclude_ids = []
+        self.exclude_ids: List[int] = []
 
         logger.info("Initializing Allocine Scraper...")
         logger.info(f"- Number of pages to scrap: {self.config.number_of_pages}")
@@ -103,7 +103,7 @@ class AllocineScraper:
         if self.config.append_result:
             try:
                 self.df = pd.read_csv(self.config.full_output_path)
-                self.exclude_ids = self.df["id"].dropna().astype(int).tolist()
+                self.exclude_ids = self.df["id"].dropna().astype(int).tolist()  # type: ignore
                 logger.info(
                     f"""- The list to exclude movies already fetch has been initialize
                     -- Total movie listed: {len(self.exclude_ids)}"""
@@ -198,7 +198,7 @@ class AllocineScraper:
             List of relative URL paths to individual movie pages.
         """
 
-        parser = BeautifulSoup(page.content, "html.parser")
+        parser = BeautifulSoup(page.content, "html.parser")  # type: ignore
         urls = [url.a["href"] for url in parser.find_all("h2", class_="meta-title")]
 
         if self.config.append_result and self.exclude_ids:
@@ -221,7 +221,7 @@ class AllocineScraper:
         Args:
             page: Response object containing the movie page content.
         """
-        parser = BeautifulSoup(page.content, "html.parser")
+        parser = BeautifulSoup(page.content, "html.parser")  # type: ignore
         parser_movie = parser.find("main", {"id": "content-layout"})
 
         if parser_movie is None:
@@ -244,7 +244,7 @@ class AllocineScraper:
         self.df = (
             pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
             if not self.df.empty
-            else pd.DataFrame(movie_datas, columns=self.movie_infos)
+            else pd.DataFrame(movie_datas, columns=self.movie_infos)  # type: ignore
         ).drop_duplicates(subset=["id"])
 
         self.df.to_csv(f"{self.config.full_output_path}", index=False)
@@ -307,7 +307,9 @@ class AllocineScraper:
             The movie's unique identifier.
         """
 
-        movie_id = re.sub(r"\D", "", movie.find("span", {"class": "home"})["href"])
+        span = movie.find("span", {"class": "home"})
+        href = span["href"] if span and span.has_attr("href") else ""
+        movie_id = re.sub(r"\D", "", href)
 
         return int(movie_id)
 
@@ -322,7 +324,8 @@ class AllocineScraper:
             The movie's title.
         """
 
-        movie_title = movie.find("div", {"class": "titlebar-title"}).text.strip()
+        title_div = movie.find("div", {"class": "titlebar-title"})
+        movie_title = title_div.text.strip() if title_div else ""
 
         return movie_title
 
@@ -354,12 +357,14 @@ class AllocineScraper:
             The movie's duration in minutes or None if not found.
         """
 
-        movie_duration = movie.find("span", {"class": "spacer"}).next_sibling.strip()
-        if movie_duration != "":
-            duration_timedelta = pd.to_timedelta(movie_duration).components
-            movie_duration = duration_timedelta.hours * 60 + duration_timedelta.minutes
+        spacer = movie.find("span", {"class": "spacer"})
+        sibling = spacer.next_sibling if spacer else None
+        duration_str = sibling.strip() if sibling and isinstance(sibling, str) else ""
+        if duration_str != "":
+            duration_timedelta = pd.to_timedelta(duration_str).components  # type: ignore
+            return duration_timedelta.hours * 60 + duration_timedelta.minutes
 
-        return movie_duration
+        return None
 
     @staticmethod
     def _get_movie_genres(movie: bs4.element.Tag) -> Optional[str]:
@@ -523,9 +528,8 @@ class AllocineScraper:
             The movie's summary or None if not found.
         """
 
-        movie_summary = movie.find("section", {"class": "section ovw ovw-synopsis"}).find(
-            "div", {"class": "content-txt"}
-        )
+        synopsis_sec = movie.find("section", {"class": "section ovw ovw-synopsis"})
+        movie_summary = synopsis_sec.find("div", {"class": "content-txt"}) if synopsis_sec else None
 
         if movie_summary:
             movie_summary = movie_summary.text.strip()

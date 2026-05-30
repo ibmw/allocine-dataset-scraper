@@ -88,7 +88,7 @@ def bs4_movie_page():
     resp.status_code = 200
     resp._content = str.encode(txt)
 
-    parser = BeautifulSoup(resp.content, "html.parser")
+    parser = BeautifulSoup(resp.content, "html.parser")  # type: ignore
     parser_movie = parser.find("main", {"id": "content-layout"})
 
     return parser_movie
@@ -102,7 +102,7 @@ def bs4_movie_page_exception():
     resp.status_code = 200
     resp._content = str.encode(txt)
 
-    parser = BeautifulSoup(resp.content, "html.parser")
+    parser = BeautifulSoup(resp.content, "html.parser")  # type: ignore
     parser_movie = parser.find("main", {"id": "content-layout"})
 
     return parser_movie

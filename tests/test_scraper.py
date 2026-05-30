@@ -5,6 +5,8 @@ covering movie data extraction, parsing, error handling, and file operations.
 Tests use mocked responses to avoid actual web requests.
 """
 
+from pathlib import Path
+
 import dateparser
 import pandas as pd
 import pytest
@@ -22,7 +24,7 @@ def test__get_page():
     """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
-    resp = scraper._get_page()
+    resp = scraper._get_page(1)
     assert resp.status_code == 200
 
 
@@ -34,7 +36,7 @@ def test__get_movie():
     """
     config = ScraperConfig()
     scraper = AllocineScraper(config)
-    resp = scraper._get_movie()
+    resp = scraper._get_movie("dummy")
     assert resp.status_code == 200
 
 
@@ -295,7 +297,7 @@ def test_scraping_movies_with_append(tmp_path, get_dataframe):
     config = ScraperConfig(
         number_of_pages=1,
         from_page=1,
-        output_dir=f"{path_dir}",
+        output_dir=Path(path_dir),
         output_csv_name=output_csv_name,
         pause_scraping=(0, 1),
         append_result=True,
@@ -320,7 +322,7 @@ def test_scraping_movies(tmp_path):
     config = ScraperConfig(
         number_of_pages=1,
         from_page=1,
-        output_dir=f"{path_dir}",
+        output_dir=Path(path_dir),
         output_csv_name=output_csv_name,
         pause_scraping=(0, 1),
         append_result=False,
@@ -336,35 +338,35 @@ def test_scraping_movies(tmp_path):
 def test_number_of_page_exception():
     with pytest.raises(ValidationError):
         ScraperConfig(
-            number_of_pages="five",
+            number_of_pages="five",  # type: ignore
         )
 
 
 def test_from_page_exception():
     with pytest.raises(ValidationError):
         ScraperConfig(
-            from_page="one",
+            from_page="one",  # type: ignore
         )
 
 
 def test_output_dir_exception():
     with pytest.raises(ValidationError):
         ScraperConfig(
-            output_dir=1,
+            output_dir=1,  # type: ignore
         )
 
 
 def test_output_csv_name_exception():
     with pytest.raises(ValidationError):
         ScraperConfig(
-            output_csv_name=1,
+            output_csv_name=1,  # type: ignore
         )
 
 
 def test_pause_scraping_exception():
     with pytest.raises(ValidationError):
         ScraperConfig(
-            pause_scraping="pause",
+            pause_scraping="pause",  # type: ignore
         )
 
 
@@ -384,7 +386,7 @@ def test_append_result_exception(tmp_path):
         config = ScraperConfig(
             number_of_pages=1,
             from_page=1,
-            output_dir=f"{path_dir}",
+            output_dir=Path(path_dir),
             output_csv_name=output_csv_name,
             pause_scraping=(0, 1),
             append_result=True,
@@ -407,7 +409,7 @@ def test_parse_page_with_exclude_ids(tmp_path, response_page):
     path_dir.mkdir()
 
     config = ScraperConfig(
-        output_dir=f"{path_dir}",
+        output_dir=Path(path_dir),
         append_result=False,
     )
     scraper = AllocineScraper(config)
@@ -475,7 +477,7 @@ def test_edge_case_movie_durations(bs4_movie_page):
 
     duration_tag = bs4_movie_page.find("span", {"class": "spacer"})
     duration_tag.next_sibling.replace_with("")
-    assert scraper._get_movie_duration(bs4_movie_page) == ""
+    assert scraper._get_movie_duration(bs4_movie_page) is None
 
 
 def test_config_validation_edge_cases():

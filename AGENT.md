@@ -46,7 +46,7 @@ Before committing any changes, ensure all verification tools pass:
 | **pytest** | Run all unit & integration tests with coverage | `uv run pytest --cov` |
 | **ruff check** | Code linting and style enforcement | `uv run ruff check .` |
 | **ruff format** | Check code formatting | `uv run ruff format .` |
-| **mypy** | Strict static type checking | `uv run mypy src tests` |
+| **pyright** | Static type checking | `uv run pyright` |
 
 > [!IMPORTANT]
 > The target test coverage for the repository is **above 90%**. When modifying parsing or configuration code, you must add corresponding unit tests in `tests/test_scraper.py` or `tests/test_run.py`.
@@ -148,4 +148,4 @@ If you are asked to add new movie metadata fields or scraper parameters, follow 
    - Add mock HTML sections in `tests/data/movie.txt` or `tests/data/movie_exception.txt`.
    - Implement a test case in `tests/test_scraper.py` checking successful parsing and exception scenarios.
 6. **Validation**: 
-   - Run quality checks (`uv run ruff check .`, `uv run mypy src tests`, `uv run pytest`).
+   - Run quality checks (`uv run ruff check .`, `uv run pyright`, `uv run pytest`).
