@@ -554,7 +554,7 @@ def test_parse_movie_generic_exception(response_movie, monkeypatch):
     )
     scraper._parse_movie(response_movie)
     assert len(scraper.df) == 1
-    assert scraper.df.iloc[0]["id"] is None
+    assert pd.isna(scraper.df.iloc[0]["id"])
 
 
 def test_number_of_spec_rating_regex_fix():

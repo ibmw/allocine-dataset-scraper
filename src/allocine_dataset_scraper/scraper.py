@@ -105,6 +105,10 @@ class AllocineScraper:
         if self.config.append_result:
             try:
                 self.df = pd.read_csv(self.config.full_output_path)
+                if "id" in self.df.columns:
+                    self.df["id"] = pd.to_numeric(self.df["id"], errors="coerce").astype("Int64")  # type: ignore
+                if "duration" in self.df.columns:
+                    self.df["duration"] = pd.to_numeric(self.df["duration"], errors="coerce").astype("Int64")  # type: ignore
                 self.exclude_ids = self.df["id"].dropna().astype(int).tolist()  # type: ignore
                 logger.info(
                     f"""- The list to exclude movies already fetch has been initialize
@@ -288,6 +292,11 @@ class AllocineScraper:
             if not self.df.empty
             else pd.DataFrame(movie_datas, columns=self.movie_infos)  # type: ignore
         ).drop_duplicates(subset=["id"], keep="last")
+
+        if "id" in self.df.columns:
+            self.df["id"] = self.df["id"].astype("Int64")
+        if "duration" in self.df.columns:
+            self.df["duration"] = self.df["duration"].astype("Int64")
 
         self.df.to_csv(f"{self.config.full_output_path}", index=False)
 
@@ -550,6 +559,10 @@ class AllocineScraper:
         logger.info(f"Loading scraped data from {csv_path}...")
         try:
             df_scraped = pd.read_csv(csv_path)
+            if "id" in df_scraped.columns:
+                df_scraped["id"] = pd.to_numeric(df_scraped["id"], errors="coerce").astype("Int64")  # type: ignore
+            if "duration" in df_scraped.columns:
+                df_scraped["duration"] = pd.to_numeric(df_scraped["duration"], errors="coerce").astype("Int64")  # type: ignore
         except pd.errors.EmptyDataError:
             logger.info("Scraped data file is empty. Nothing to validate.")
             return
