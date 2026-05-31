@@ -4,6 +4,7 @@ This module provides pytest fixtures used across multiple test modules.
 Includes fixtures for mocked responses, sample data, and test configurations.
 """
 
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -11,6 +12,7 @@ import pytest
 from bs4 import BeautifulSoup
 from requests import Response
 
+from allocine_dataset_scraper.config import ScraperConfig
 from allocine_dataset_scraper.utils import read_file
 
 
@@ -55,9 +57,6 @@ def patch_tests(monkeypatch, request):
     """
     if "e2e" in request.keywords:
         return
-
-    import tempfile
-    from allocine_dataset_scraper.config import ScraperConfig
 
     # Dynamically sandbox default file writes
     test_temp_dir = tempfile.TemporaryDirectory()
