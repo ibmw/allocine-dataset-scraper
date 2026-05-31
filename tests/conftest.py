@@ -43,10 +43,11 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest.fixture(autouse=True)
 def patch_tests(monkeypatch, request):
-    """Patch Allocine scraper class for all tests except E2E.
+    """Patch Allocine scraper class and config for all tests except E2E.
 
-    Automatically applied fixture that mocks network requests to avoid
-    actual web scraping during tests.
+    Automatically applied fixture that mocks network requests and redirects
+    file writing directories to a secure temporary directory to prevent
+    overwriting local production datasets.
 
     Args:
         monkeypatch: Pytest fixture for modifying objects
@@ -54,6 +55,22 @@ def patch_tests(monkeypatch, request):
     """
     if "e2e" in request.keywords:
         return
+
+    import tempfile
+    from allocine_dataset_scraper.config import ScraperConfig
+
+    # Dynamically sandbox default file writes
+    test_temp_dir = tempfile.TemporaryDirectory()
+    request.addfinalizer(test_temp_dir.cleanup)
+
+    original_init = ScraperConfig.__init__
+
+    def patched_init(self, *args, **kwargs):
+        if "output_dir" not in kwargs or kwargs["output_dir"] == Path("data") or str(kwargs["output_dir"]) == "data":
+            kwargs["output_dir"] = Path(test_temp_dir.name)
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(ScraperConfig, "__init__", patched_init)
 
     def response_page_same_movie_id(*arg):
         """Create mock response for movie listing page."""

@@ -496,16 +496,17 @@ def test_config_validation_edge_cases():
         ScraperConfig(pause_scraping=(5, 3))  # Max should be > min
 
 
-def test_parse_movie_duplicate_handling(response_movie):
+def test_parse_movie_duplicate_handling(tmp_path, response_movie):
     """Test handling of duplicate movie entries.
 
     Verifies that duplicate movies are properly handled when parsing,
     ensuring only one copy of each movie is kept in the DataFrame.
 
     Args:
+        tmp_path: Pytest fixture providing temporary directory path.
         response_movie: Fixture providing mock movie response.
     """
-    config = ScraperConfig(append_result=True)
+    config = ScraperConfig(output_dir=tmp_path / "data", append_result=False)
     scraper = AllocineScraper(config)
     scraper._parse_movie(response_movie)
     scraper._parse_movie(response_movie)
