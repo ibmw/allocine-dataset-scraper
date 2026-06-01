@@ -459,7 +459,7 @@ def test_parse_movie_with_missing_data(response_movie):
     scraper = AllocineScraper(config)
     response_movie._content = response_movie._content.replace(b"stareval-note", b"missing-note")
     scraper._parse_movie(response_movie)
-    assert scraper.df.iloc[0]["press_rating"] is None
+    assert pd.isna(scraper.df.iloc[0]["press_rating"])
     assert scraper.df.iloc[0]["title"] is not None
 
 

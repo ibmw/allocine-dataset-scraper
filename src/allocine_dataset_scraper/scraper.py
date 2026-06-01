@@ -61,21 +61,34 @@ class AllocineScraper:
         >>> scraper.scraping_movies()
     """
 
-    movie_infos: List[str] = [
-        "id",
-        "title",
-        "release_date",
-        "duration",
-        "genres",
-        "directors",
-        "actors",
-        "nationality",
-        "press_rating",
-        "number_of_press_rating",
-        "spec_rating",
-        "number_of_spec_rating",
-        "summary",
-    ]
+    MOVIE_SCHEMA: Dict[str, str] = {
+        "id": "Int64",
+        "title": "object",
+        "release_date": "object",
+        "duration": "Int64",
+        "genres": "object",
+        "directors": "object",
+        "actors": "object",
+        "nationality": "object",
+        "press_rating": "float64",
+        "number_of_press_rating": "float64",
+        "spec_rating": "float64",
+        "number_of_spec_rating": "float64",
+        "summary": "object",
+    }
+
+    movie_infos: List[str] = list(MOVIE_SCHEMA.keys())
+
+    REPORT_SCHEMA: Dict[str, str] = {
+        "movie_id": "Int64",
+        "movie_title": "object",
+        "error_type": "object",
+        "field": "object",
+        "value": "object",
+        "reason": "object",
+        "retry_count": "Int64",
+        "timestamp": "object",
+    }
 
     df: pd.DataFrame = pd.DataFrame(columns=movie_infos)  # type: ignore
 
@@ -105,10 +118,7 @@ class AllocineScraper:
         if self.config.append_result:
             try:
                 self.df = pd.read_csv(self.config.full_output_path)
-                if "id" in self.df.columns:
-                    self.df["id"] = pd.to_numeric(self.df["id"], errors="coerce").astype("Int64")  # type: ignore
-                if "duration" in self.df.columns:
-                    self.df["duration"] = pd.to_numeric(self.df["duration"], errors="coerce").astype("Int64")  # type: ignore
+                self.df = self._coerce_df(self.df, self.MOVIE_SCHEMA)
                 self.exclude_ids = self.df["id"].dropna().astype(int).tolist()  # type: ignore
                 logger.info(
                     f"""- The list to exclude movies already fetch has been initialize
@@ -191,6 +201,36 @@ class AllocineScraper:
             except Exception as ex:  # pragma: no cover
                 logger.error(f"Failed to create {path_dir}: {ex}")
                 raise OSError(f"Failed to create {path_dir}: {ex}")
+
+    @staticmethod
+    def _coerce_df(df: pd.DataFrame, schema: Dict[str, str]) -> pd.DataFrame:
+        """Coerce DataFrame columns to their expected types using error-resilient methods.
+
+        This ensures strict schema compliance and type uniformity, preventing dtypes upcasting
+        during concatenation.
+        """
+        df = df.copy()
+        for col, dtype in schema.items():
+            if col not in df.columns:
+                df[col] = None
+
+            if dtype in ("Int64", "float64"):
+                df[col] = pd.to_numeric(df[col], errors="coerce").astype(dtype)  # type: ignore
+            else:
+                df[col] = df[col].astype(dtype)  # type: ignore
+
+        # reindex also drops any columns absent from the schema (e.g. stale index cols)
+        return df.reindex(columns=list(schema.keys()))
+
+    @staticmethod
+    def _merge_report(existing: pd.DataFrame, new_rows: pd.DataFrame) -> pd.DataFrame:
+        """Coerce and merge existing report with new error rows compliantly."""
+        new_rows = AllocineScraper._coerce_df(new_rows, AllocineScraper.REPORT_SCHEMA)
+        if existing.empty:
+            return new_rows.drop_duplicates(subset=["movie_id", "field"], keep="last")
+        existing = AllocineScraper._coerce_df(existing, AllocineScraper.REPORT_SCHEMA)
+        combined = pd.concat([existing, new_rows], ignore_index=True)
+        return combined.drop_duplicates(subset=["movie_id", "field"], keep="last")
 
     def _parse_page(self, page: requests.Response) -> List[str]:
         """Parse a movie listing page to extract movie URLs.
@@ -287,16 +327,12 @@ class AllocineScraper:
                     }
                 )
 
-        self.df = (
-            pd.concat([self.df, pd.DataFrame(movie_datas)], ignore_index=True)
-            if not self.df.empty
-            else pd.DataFrame(movie_datas, columns=self.movie_infos)  # type: ignore
-        ).drop_duplicates(subset=["id"], keep="last")
-
-        if "id" in self.df.columns:
-            self.df["id"] = self.df["id"].astype("Int64")
-        if "duration" in self.df.columns:
-            self.df["duration"] = self.df["duration"].astype("Int64")
+        new_df = pd.DataFrame(movie_datas, columns=self.movie_infos)  # type: ignore
+        new_df = self._coerce_df(new_df, self.MOVIE_SCHEMA)
+        if self.df.empty:
+            self.df = new_df
+        else:
+            self.df = pd.concat([self.df, new_df], ignore_index=True).drop_duplicates(subset=["id"], keep="last")
 
         self.df.to_csv(f"{self.config.full_output_path}", index=False)
 
@@ -422,10 +458,7 @@ class AllocineScraper:
                 if not match.empty:
                     new_errors_df.at[idx, "retry_count"] = int(match.iloc[0]["retry_count"])
 
-            combined = pd.concat([existing_report, new_errors_df], ignore_index=True)
-            final_report = combined.drop_duplicates(subset=["movie_id", "field"], keep="last")
-        else:
-            final_report = new_errors_df.drop_duplicates(subset=["movie_id", "field"], keep="last")
+        final_report = self._merge_report(existing_report, new_errors_df)
 
         try:
             final_report.to_csv(report_path, index=False)
@@ -507,8 +540,7 @@ class AllocineScraper:
                                 err["retry_count"] = existing_count + 1
 
                             new_err_df = pd.DataFrame(staged_for_this_movie)
-                            combined = pd.concat([df_report, new_err_df], ignore_index=True)
-                            final_report = combined.drop_duplicates(subset=["movie_id", "field"], keep="last")
+                            final_report = self._merge_report(df_report, new_err_df)
                             final_report.to_csv(report_path, index=False)
                         except Exception as e:  # pragma: no cover
                             logger.error(f"Failed to update retry counts in quality report: {e}")
@@ -539,8 +571,7 @@ class AllocineScraper:
                         scrape_err["retry_count"] = existing_count + 1
 
                         new_err_df = pd.DataFrame([scrape_err])
-                        combined = pd.concat([df_report, new_err_df], ignore_index=True)
-                        final_report = combined.drop_duplicates(subset=["movie_id", "field"], keep="last")
+                        final_report = self._merge_report(df_report, new_err_df)
                         final_report.to_csv(report_path, index=False)
                     except Exception as ex:  # pragma: no cover
                         logger.error(f"Failed to log retry page failure: {ex}")
@@ -559,10 +590,7 @@ class AllocineScraper:
         logger.info(f"Loading scraped data from {csv_path}...")
         try:
             df_scraped = pd.read_csv(csv_path)
-            if "id" in df_scraped.columns:
-                df_scraped["id"] = pd.to_numeric(df_scraped["id"], errors="coerce").astype("Int64")  # type: ignore
-            if "duration" in df_scraped.columns:
-                df_scraped["duration"] = pd.to_numeric(df_scraped["duration"], errors="coerce").astype("Int64")  # type: ignore
+            df_scraped = self._coerce_df(df_scraped, self.MOVIE_SCHEMA)
         except pd.errors.EmptyDataError:
             logger.info("Scraped data file is empty. Nothing to validate.")
             return
