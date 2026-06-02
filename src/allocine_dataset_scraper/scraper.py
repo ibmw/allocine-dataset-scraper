@@ -35,6 +35,7 @@ from tqdm.auto import tqdm
 
 from allocine_dataset_scraper.config import ScraperConfig, Settings, settings
 from allocine_dataset_scraper.validation import validate_movie
+from allocine_dataset_scraper.schema import MOVIE_INFOS, MOVIE_SCHEMA, REPORT_SCHEMA
 
 logger.remove()
 logger.add("scraper.log", rotation="100 MB")
@@ -61,34 +62,9 @@ class AllocineScraper:
         >>> scraper.scraping_movies()
     """
 
-    MOVIE_SCHEMA: Dict[str, str] = {
-        "id": "Int64",
-        "title": "object",
-        "release_date": "object",
-        "duration": "Int64",
-        "genres": "object",
-        "directors": "object",
-        "actors": "object",
-        "nationality": "object",
-        "press_rating": "float64",
-        "number_of_press_rating": "float64",
-        "spec_rating": "float64",
-        "number_of_spec_rating": "float64",
-        "summary": "object",
-    }
-
-    movie_infos: List[str] = list(MOVIE_SCHEMA.keys())
-
-    REPORT_SCHEMA: Dict[str, str] = {
-        "movie_id": "Int64",
-        "movie_title": "object",
-        "error_type": "object",
-        "field": "object",
-        "value": "object",
-        "reason": "object",
-        "retry_count": "Int64",
-        "timestamp": "object",
-    }
+    MOVIE_SCHEMA = MOVIE_SCHEMA
+    movie_infos = MOVIE_INFOS
+    REPORT_SCHEMA = REPORT_SCHEMA
 
     df: pd.DataFrame = pd.DataFrame(columns=movie_infos)  # type: ignore
 
