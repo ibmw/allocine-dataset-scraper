@@ -222,7 +222,13 @@ class AllocineScraper:
         """
 
         parser = BeautifulSoup(page.content, "html.parser")  # type: ignore
-        urls = [url.a["href"] for url in parser.find_all("h2", class_="meta-title")]
+        urls: List[str] = []
+        for tag in parser.find_all("h2", class_="meta-title"):
+            a_tag = tag.a
+            if a_tag:
+                href = a_tag.get("href")
+                if isinstance(href, str):
+                    urls.append(href)
 
         if self.config.append_result and self.exclude_ids:
             ori_urls_len = len(urls)
@@ -639,7 +645,8 @@ class AllocineScraper:
         """
 
         span = movie.find("span", {"class": "home"})
-        href = span["href"] if span and span.has_attr("href") else ""
+        href_val = span.get("href") if span else None
+        href = href_val if isinstance(href_val, str) else ""
         movie_id = re.sub(r"\D", "", href)
 
         return int(movie_id)
@@ -673,11 +680,11 @@ class AllocineScraper:
             The movie's release date or None if not found.
         """
 
-        movie_date = movie.find("span", {"class": "date"})
-        if movie_date:
-            movie_date = movie_date.text.strip()
-            movie_date = dateparser.parse(movie_date, date_formats=["%d %B %Y"])
-        return movie_date
+        movie_date_tag = movie.find("span", {"class": "date"})
+        if movie_date_tag:
+            date_str = movie_date_tag.text.strip()
+            return dateparser.parse(date_str, date_formats=["%d %B %Y"])
+        return None
 
     @staticmethod
     def _get_movie_duration(movie: bs4.element.Tag) -> Optional[int]:
@@ -783,7 +790,9 @@ class AllocineScraper:
 
         for ratings in movie_ratings:
             if "Presse" in ratings.text:
-                return float(re.sub(",", ".", ratings.find("span", {"class": "stareval-note"}).text))
+                note_span = ratings.find("span", {"class": "stareval-note"})
+                if note_span:
+                    return float(re.sub(",", ".", note_span.text))
         return None
 
     @staticmethod
@@ -822,7 +831,9 @@ class AllocineScraper:
 
         for ratings in movie_ratings:
             if "Spectateurs" in ratings.text:
-                return float(re.sub(",", ".", ratings.find("span", {"class": "stareval-note"}).text))
+                note_span = ratings.find("span", {"class": "stareval-note"})
+                if note_span:
+                    return float(re.sub(",", ".", note_span.text))
 
         return None
 
