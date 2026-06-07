@@ -44,7 +44,7 @@ uvx --from git+https://github.com/ibmw/allocine-dataset-scraper.git fetch-alloci
 ```
 
 > [!TIP]
-> **Pre-scraped Dataset:** To bootstrap your work without waiting, you can [download a pre-scraped historical dataset](https://www.olivier-maillot.fr/wp-content/uploads/2021/10/allocine_movies.csv) (October 2021 snapshot) directly.
+> **Pre-scraped Dataset:** To bootstrap your work without waiting, you can [download a pre-scraped historical dataset](https://huggingface.co/datasets/Olivier/allocine-movies) (June 2026 snapshot) directly.
 
 ---
 
